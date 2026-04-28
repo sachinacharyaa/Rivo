@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solana Digital Product Landscape</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111a2b;
+      --panel-2: #162238;
+      --text: #e7eefc;
+      --muted: #9fb0cd;
+      --good: #69d2a1;
+      --warn: #f1c96b;
+      --bad: #ff8f8f;
+      --line: #263552;
+      --accent: #59c7ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(89, 199, 255, 0.18), transparent 24rem),
+        linear-gradient(180deg, #0a1120, #0d1527 45%, #0a1120);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 20px 56px;
+    }
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { color: var(--muted); line-height: 1.55; }
+    .hero, .panel {
+      background: rgba(17, 26, 43, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(8px);
+    }
+    .hero { margin-bottom: 20px; }
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(89, 199, 255, 0.4);
+      color: var(--accent);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .label {
+      display: inline-block;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .sparse { background: rgba(105, 210, 161, 0.14); color: var(--good); }
+    .moderate { background: rgba(241, 201, 107, 0.14); color: var(--warn); }
+    .crowded { background: rgba(255, 143, 143, 0.14); color: var(--bad); }
+    ul {
+      margin: 10px 0 0 18px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+    .table th, .table td {
+      border-top: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .table th {
+      color: var(--text);
+      font-weight: 600;
+    }
+    a { color: #7ed6ff; }
+    .sources li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="badge">Solana Competitive Landscape</div>
+      <h1>Best digital product wedge on Solana: creator collectible packs</h1>
+      <p>
+        Recommendation: do not enter the generic NFT marketplace fight. Start with
+        licensed sticker, emote, music, short-video, and bonus-content packs for creators
+        and communities. This is one of the few segments where Solana's compression,
+        cheap transfers, and secondary trading clearly improve the product.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Segment scorecard</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="label crowded">Saturated</div>
+          <h3>Generic NFT / PFP marketplace</h3>
+          <ul>
+            <li>Dominated by Tensor and Magic Eden</li>
+            <li>Weak moat without exclusive supply</li>
+            <li>Recent marketplace shutdowns are a warning sign</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label crowded">Crowded</div>
+          <h3>1/1 fine art</h3>
+          <ul>
+            <li>Existing specialist venues already serve this market</li>
+            <li>Strong creator communities but slower scale</li>
+            <li>Hard to outcompete on curation and trust</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label moderate">Moderate</div>
+          <h3>Ticketing</h3>
+          <ul>
+            <li>Real buyer demand and large inventory are proven</li>
+            <li>Operations, fraud, and regulation are heavier</li>
+            <li>Good business, but not the easiest first wedge</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label moderate">Moderate</div>
+          <h3>Loyalty / membership passes</h3>
+          <ul>
+            <li>Strong B2B value, proven ROI</li>
+            <li>Requires brand sales motion, not open marketplace demand</li>
+            <li>Best as a later expansion</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="label sparse">Best Opportunity</div>
+          <h3>Creator collectible packs</h3>
+          <ul>
+            <li>Sticker/emote packs are especially underbuilt</li>
+            <li>Fits creators, communities, and fan clubs</li>
+            <li>Supports primary sales, drops, and secondary trading</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:20px;">
+      <h2>Why this wedge works</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Signal</th>
+            <th>What it means</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Solana can mint compressed NFTs for fractions of a cent</td>
+            <td>Cheap enough for mass consumer drops, free claims, pack openings, and low-priced digital goods.</td>
+          </tr>
+          <tr>
+            <td>DRiP already sends millions of creator collectibles</td>
+            <td>There is real demand for owned digital media, but the current leaders are distribution products, not a dominant neutral marketplace for licensed packs.</td>
+          </tr>
+          <tr>
+            <td>Dialect validated sticker/emote behavior</td>
+            <td>Expressive digital goods have strong social usage and natural repeat-purchase loops.</td>
+          </tr>
+          <tr>
+            <td>Generic Solana NFT trading is already crowded</td>
+            <td>Do not fight Tensor or Magic Eden head-on; bring exclusive supply and a specific format instead.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel" style="margin-top:20px;">
+      <h2>Product definition</h2>
+      <p>
+        Launch a Solana marketplace where creators sell licensed digital packs:
+        sticker packs, meme packs, reaction packs, music snippets, behind-the-scenes clips,
+        fan art bundles, and unlockable bonus drops.
+      </p>
+      <ul>
+        <li>Buyers get ownership, collectability, resale, and access perks.</li>
+        <li>Sellers get direct monetization, royalties, bundles, and community distribution.</li>
+        <li>The marketplace gets a repeatable drop model instead of one-time art listings.</li>
+      </ul>
+    </section>
+
+    <section class="panel" style="margin-top:20px;">
+      <h2>Sources</h2>
+      <ul class="sources">
+        <li><a href="https://solana.com/developers/nfts">Solana NFTs</a></li>
+        <li><a href="https://solana.com/solutions/artists-creators">Solana Artists and Creators</a></li>
+        <li><a href="https://docs.tensor.trade/">Tensor docs</a></li>
+        <li><a href="https://solana.com/news/only-possible-on-solana-drip">Only Possible on Solana: DRiP</a></li>
+        <li><a href="https://solana.com/news/case-study-dialect">Dialect case study</a></li>
+        <li><a href="https://solana.com/ko/news/case-study-xp">XP ticket marketplace case study</a></li>
+        <li><a href="https://solana.com/news/case-study-boba-guys">Boba Guys loyalty case study</a></li>
+        <li><a href="https://support.drip.haus/hc/en-us/articles/35075003989531--What-is-the-DRiP-Shared-Collection">DRiP shared collection</a></li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>

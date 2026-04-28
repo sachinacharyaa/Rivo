@@ -7,8 +7,11 @@ import {
 } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
-export const RIPPLE_FEE_WALLET =
+export const RIVO_FEE_WALLET =
   "G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw";
+
+// Backward-compat alias for existing imports.
+export const RIPPLE_FEE_WALLET = RIVO_FEE_WALLET;
 
 type PaymentParams = {
   connection: Connection;
@@ -73,7 +76,7 @@ export async function handlePayment({
   wallet,
   productPriceSol,
   creatorAddress,
-  platformAddress = RIPPLE_FEE_WALLET,
+  platformAddress = RIVO_FEE_WALLET,
 }: PaymentParams): Promise<string> {
   if (!wallet.publicKey) {
     throw new Error("Connect wallet first");

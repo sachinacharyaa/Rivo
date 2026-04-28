@@ -14,7 +14,7 @@ import { api } from "./lib/api";
 import axios from "axios";
 import {
   handlePayment,
-  Rivo_FEE_WALLET,
+  RIVO_FEE_WALLET,
 } from "./lib/payment";
 import { formatProductPrice, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
@@ -130,8 +130,8 @@ function Layout({
         <footer className="gr-footer bg-solana-gradient">
           <div className="gr-footer-cta">
             <div className="gr-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <h2 className="gr-title-huge text-white" style={{ textAlign: "center", marginBottom: "24px" }}>Ready to earn?</h2>
-              <p className="gr-subtitle" style={{ color: "rgba(255,255,255,0.85)", textAlign: "center", margin: "0 auto 40px", maxWidth: "600px" }}>
+              <h2 className="gr-title-huge" style={{ textAlign: "center", marginBottom: "24px" }}>Ready to earn?</h2>
+              <p className="gr-subtitle" style={{ textAlign: "center", margin: "0 auto 40px", maxWidth: "600px" }}>
                 A tasteful & useful crypto app built for creators. Connect your wallet and instantly monetize your content seamlessly on Solana.
               </p>
               <Link to="/dashboard/home" className="gr-btn gr-btn-green">
@@ -531,7 +531,7 @@ function ProductPage() {
         wallet: { publicKey, sendTransaction },
         productPriceSol: product.priceSol,
         creatorAddress,
-        platformAddress: Rivo_FEE_WALLET,
+        platformAddress: RIVO_FEE_WALLET,
       });
       setTxSignature(signature);
 

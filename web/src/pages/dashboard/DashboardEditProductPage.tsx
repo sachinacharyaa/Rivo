@@ -24,7 +24,7 @@ export function DashboardEditProductPage() {
     name: "",
     description: "",
     productInfo: "",
-    currency: "SOL" as "SOL" | "USDC",
+    currency: "SOL" as "SOL" | "USDC" | "AUDD",
     priceAmount: "",
     coverUrl: "",
   });
@@ -42,7 +42,13 @@ export function DashboardEditProductPage() {
           description: p.description || "",
           productInfo: p.productInfo || "",
           currency: p.currency || "SOL",
-          priceAmount: String(p.currency === "USDC" ? p.priceUsdc ?? 0 : p.priceSol ?? 0),
+          priceAmount: String(
+            p.currency === "USDC"
+              ? p.priceUsdc ?? 0
+              : p.currency === "AUDD"
+                ? p.priceAudd ?? 0
+                : p.priceSol ?? 0,
+          ),
           coverUrl: p.coverUrl || "",
         });
         setContentUrl(p.contentUrl || "");
@@ -58,6 +64,7 @@ export function DashboardEditProductPage() {
       currency: draft.currency,
       priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
       priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
+      priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
     }),
     [draft.currency, draft.priceAmount],
   );
@@ -96,6 +103,7 @@ export function DashboardEditProductPage() {
         currency: draft.currency,
         priceSol: draft.currency === "SOL" ? amount : 0,
         priceUsdc: draft.currency === "USDC" ? amount : 0,
+        priceAudd: draft.currency === "AUDD" ? amount : 0,
         contentUrl: contentUrl,
         productType: productType,
         status,
@@ -161,7 +169,7 @@ export function DashboardEditProductPage() {
                   className="dash-currency-trigger"
                   value={draft.currency}
                   onChange={(e) =>
-                    setDraft((d) => ({ ...d, currency: e.target.value as "SOL" | "USDC" }))
+                    setDraft((d) => ({ ...d, currency: e.target.value as "SOL" | "USDC" | "AUDD" }))
                   }
                 >
                   {CRYPTO_OPTIONS.map((opt) => (

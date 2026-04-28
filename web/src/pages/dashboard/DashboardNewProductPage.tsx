@@ -102,6 +102,7 @@ export function DashboardNewProductPage() {
         currency: draft.currency,
         priceSol: draft.currency === "SOL" ? price : 0,
         priceUsdc: draft.currency === "USDC" ? price : 0,
+        priceAudd: draft.currency === "AUDD" ? price : 0,
         productType: draft.productType,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,

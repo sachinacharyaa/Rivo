@@ -3161,7 +3161,7 @@ textarea {
    GUMROAD STYLE FOOTER (SOLANA DARK VIBE)
    ========================================================== */
 .gr-footer {
-  border-top: 4px solid var(--ink);
+  border-top: none;
   overflow: hidden;
   position: relative;
   z-index: 10;
@@ -3176,8 +3176,10 @@ textarea {
 
 .gr-footer-cta {
   padding: 100px 24px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border-bottom: none;
   text-align: center;
+  background: var(--cream);
+  color: var(--ink);
 }
 
 .gr-btn {

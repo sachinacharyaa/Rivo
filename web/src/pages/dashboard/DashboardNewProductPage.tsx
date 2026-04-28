@@ -118,7 +118,7 @@ export function DashboardNewProductPage() {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as { message?: string; issues?: { message?: string }[] } | undefined;
         if (!err.response) {
-          setError("API is unreachable. Make sure the backend is running on http://localhost:4000.");
+          setError("API is unreachable. Check your API deployment and VITE_API_URL configuration.");
         } else if (data?.issues?.length) {
           setError(data.issues[0]?.message || "Invalid data. Please review the fields.");
         } else {

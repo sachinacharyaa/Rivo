@@ -43,6 +43,7 @@ export function DashboardHomePage() {
   const totalEarned = useMemo(() => purchases.reduce((s, p) => s + p.amountSol, 0), [purchases]);
 
   const totalSales = useMemo(() => products.reduce((s, p) => s + p.salesCount, 0), [products]);
+  const analyticsDashboardUrl = import.meta.env.VITE_ANALYTICS_DASHBOARD_URL;
 
   const profileDone = typeof localStorage !== "undefined" && localStorage.getItem("Rivo_gs_profile") === "1";
   const payoutDone = typeof localStorage !== "undefined" && localStorage.getItem("Rivo_gs_payout") === "1";
@@ -109,6 +110,24 @@ export function DashboardHomePage() {
             <div className="gum-metric-card__label">Total earnings</div>
             <div className="gum-metric-card__value">{totalEarned.toFixed(2)} SOL</div>
           </div>
+        </div>
+      </section>
+
+      <section className="gum-section">
+        <h2 className="gum-section__title">Visitor analytics</h2>
+        <div className="gum-panel">
+          <p className="gum-panel__sub">
+            Visitor tracking is enabled with Vercel Analytics and Speed Insights.
+          </p>
+          {analyticsDashboardUrl ? (
+            <a href={analyticsDashboardUrl} target="_blank" rel="noreferrer" className="gum-btn gum-btn--ghost">
+              Open analytics dashboard
+            </a>
+          ) : (
+            <p className="gum-muted">
+              Set `VITE_ANALYTICS_DASHBOARD_URL` to your Vercel Analytics page for one-click access from this dashboard.
+            </p>
+          )}
         </div>
       </section>
 

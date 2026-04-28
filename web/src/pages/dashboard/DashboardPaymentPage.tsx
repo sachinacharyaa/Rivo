@@ -73,7 +73,7 @@ export function DashboardPaymentPage() {
           ?.message;
         if (!err.response) {
           setError(
-            "API is unreachable. Make sure the backend is running on http://localhost:4000.",
+            "API is unreachable. Check your API deployment and VITE_API_URL configuration.",
           );
         } else {
           setError(message || "Could not save payout wallet. Try again.");

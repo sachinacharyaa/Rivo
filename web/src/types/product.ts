@@ -6,6 +6,12 @@ export type ProductShape = {
   summary?: string;
   productInfo?: string;
   productType?: string;
+  deliveryMode?: "direct" | "ipfs_encrypted";
+  ipfsCid?: string;
+  encryptedContentKey?: string;
+  encryptionAlgorithm?: string;
+  fileName?: string;
+  mimeType?: string;
   status?: "draft" | "published";
   priceSol: number;
   priceUsdc?: number;

@@ -1,4 +1,4 @@
-import { type ClipboardEvent, type FormEvent, useEffect, useRef, useState } from "react";
+import { type ClipboardEvent, type DragEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { api } from "../../lib/api";
@@ -33,6 +33,7 @@ export function DashboardNewProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [createdProduct, setCreatedProduct] = useState<ProductShape | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [copied, setCopied] = useState(false);
   const [payoutWallet, setPayoutWallet] = useState("");
   const [toolbarState, setToolbarState] = useState({ bold: false, italic: false, underline: false });
@@ -44,7 +45,6 @@ export function DashboardNewProductPage() {
     description: "",
     productInfo: "",
     coverUrl: "",
-    contentUrl: "",
   });
 
   const selectedCrypto = CRYPTO_OPTIONS.find((c) => c.code === draft.currency) ?? CRYPTO_OPTIONS[0];
@@ -67,8 +67,7 @@ export function DashboardNewProductPage() {
   const canStep2 =
     draft.name.trim().length >= 2 &&
     draft.description.trim().length >= 5 &&
-    draft.contentUrl.trim().length > 0 &&
-    /^https?:\/\//i.test(draft.contentUrl.trim());
+    files.length > 0;
 
   const goCustomize = () => {
     if (!canStep1) {
@@ -86,17 +85,36 @@ export function DashboardNewProductPage() {
       return;
     }
     if (!canStep2) {
-      setError("Fill description and a valid content URL (https://…).");
+      setError("Add description and upload at least one product file.");
       return;
     }
     setSubmitting(true);
     setError("");
     const price = Number(draft.priceAmount);
     try {
+      const fd = new FormData();
+      files.forEach((f) => fd.append("files", f));
+      const uploadRes = await api.post<{
+        deliveryMode: "ipfs_encrypted";
+        ipfsCid: string;
+        encryptedContentKey: string;
+        encryptionAlgorithm: string;
+        fileName: string;
+        mimeType: string;
+      }>("/digital-products/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       const { data } = await api.post<ProductShape>("/products", {
         title: draft.name.trim(),
         description: draft.description.trim(),        productInfo: draft.productInfo.trim() || undefined,
-        contentUrl: draft.contentUrl.trim(),
+        deliveryMode: uploadRes.data.deliveryMode,
+        ipfsCid: uploadRes.data.ipfsCid,
+        encryptedContentKey: uploadRes.data.encryptedContentKey,
+        encryptionAlgorithm: uploadRes.data.encryptionAlgorithm,
+        fileName: uploadRes.data.fileName,
+        mimeType: uploadRes.data.mimeType,
+        contentUrl: "https://ipfs.io/ipfs/" + uploadRes.data.ipfsCid,
         coverUrl: draft.coverUrl || undefined,
         thumbnailUrl: draft.coverUrl || undefined,
         currency: draft.currency,
@@ -137,6 +155,16 @@ export function DashboardNewProductPage() {
     void navigator.clipboard.writeText(productPublicUrl(createdProduct));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const appendFiles = (incoming: FileList | null) => {
+    if (!incoming?.length) return;
+    setFiles((prev) => [...prev, ...Array.from(incoming)]);
+  };
+
+  const onDropFiles = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    appendFiles(e.dataTransfer.files);
   };
 
   
@@ -501,15 +529,41 @@ export function DashboardNewProductPage() {
                 />
               </div>
               <div className="gum-field">
-                <label className="gum-label">Content URL</label>
-                <input
-                  className="gum-input"
-                  type="url"
-                  placeholder="https://…"
-                  value={draft.contentUrl}
-                  onChange={(e) => setDraft((d) => ({ ...d, contentUrl: e.target.value }))}
-                  required
-                />
+                <label className="gum-label">Upload Files</label>
+                <label
+                  className="gum-dropzone"
+                  onDrop={onDropFiles}
+                  onDragOver={(e) => e.preventDefault()}
+                >
+                  <div className="gum-muted">Drag & Drop Files Here</div>
+                  <div className="gum-muted" style={{ margin: "8px 0" }}>
+                    or
+                  </div>
+                  <span className="gum-btn gum-btn--ghost">+ Add Files</span>
+                  <input
+                    className="dash-file-input"
+                    type="file"
+                    multiple
+                    onChange={(e) => appendFiles(e.target.files)}
+                    style={{ display: "none" }}
+                  />
+                </label>
+                {files.length > 0 ? (
+                  <div className="gum-muted" style={{ marginTop: "10px" }}>
+                    {files.map((f, idx) => (
+                      <div key={`${f.name}-${idx}`}>{f.name}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="gum-muted" style={{ marginTop: "8px" }}>
+                    No files selected yet.
+                  </div>
+                )}
+              </div>
+              <div className="gum-field">
+                <div className="gum-muted">
+                  Delivery metadata (IPFS CID, encrypted key, MIME) is generated by backend after upload.
+                </div>
               </div>
               {error ? <div className="dash-alert dash-alert--error">{error}</div> : null}
             </form>

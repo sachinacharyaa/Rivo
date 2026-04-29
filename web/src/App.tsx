@@ -29,6 +29,16 @@ import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
 
 type Product = ProductShape;
+type AccessPayload =
+  | { mode: "direct"; contentUrl: string; fileName?: string; mimeType?: string }
+  | {
+      mode: "ipfs_encrypted";
+      ipfsCid: string;
+      encryptedContentKey: string;
+      encryptionAlgorithm?: string;
+      fileName?: string;
+      mimeType?: string;
+    };
 
 function Coins() {
   useEffect(() => {
@@ -453,7 +463,7 @@ function ProductPage() {
   const wallet = publicKey?.toBase58() ?? "";
   const [product, setProduct] = useState<Product | null>(null);
   const [loadError, setLoadError] = useState("");
-  const [contentLink, setContentLink] = useState("");
+  const [accessPayload, setAccessPayload] = useState<AccessPayload | null>(null);
   const [txSignature, setTxSignature] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -491,7 +501,7 @@ function ProductPage() {
     if (!product || !wallet) return;
     api
       .post("/access/unlock", { productId: product._id, buyerWallet: wallet })
-      .then((res) => setContentLink(res.data.contentUrl))
+      .then((res) => setAccessPayload(res.data))
       .catch(() => undefined);
   }, [product, wallet]);
 
@@ -547,7 +557,7 @@ function ProductPage() {
         productId: product._id,
         buyerWallet,
       });
-      setContentLink(access.data.contentUrl);
+      setAccessPayload(access.data);
       setStatus("Unlocked! Enjoy your content.");
     } catch (e) {
       setStatus("");
@@ -629,12 +639,12 @@ function ProductPage() {
             </div>
 
             <div className="product-public-actions">
-              {!contentLink && (
+              {!accessPayload && (
                 <button className="btn btn-outline" type="button">
                   Add to cart
                 </button>
               )}
-              {!contentLink && (
+              {!accessPayload && (
                 <button
                   className="btn btn-primary"
                   disabled={busy || product.currency === "USDC" || product.currency === "AUDD"}
@@ -663,7 +673,7 @@ function ProductPage() {
               </div>
             ) : null}
 
-            {contentLink ? (
+            {accessPayload ? (
               <div className="product-public-unlock product-public-unlock--hero">
                 <div className="product-public-unlock__head">
                   <div>
@@ -684,14 +694,25 @@ function ProductPage() {
                   ) : null}
                 </div>
                 <div className="product-public-unlock__actions">
-                  <a
-                    className="btn btn-secondary"
-                    href={contentLink}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open content
-                  </a>
+                  {accessPayload.mode === "direct" ? (
+                    <a
+                      className="btn btn-secondary"
+                      href={accessPayload.contentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Download file
+                    </a>
+                  ) : (
+                    <a
+                      className="btn btn-secondary"
+                      href={`https://ipfs.io/ipfs/${accessPayload.ipfsCid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Download encrypted file (IPFS)
+                    </a>
+                  )}
                   {txSignature ? (
                     <a
                       className="btn btn-outline"
@@ -703,6 +724,11 @@ function ProductPage() {
                     </a>
                   ) : null}
                 </div>
+                {accessPayload.mode === "ipfs_encrypted" ? (
+                  <p className="product-public-micro">
+                    Encryption: {accessPayload.encryptionAlgorithm || "aes-256-gcm"} · key bundle is available after purchase.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

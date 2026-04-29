@@ -3,6 +3,8 @@ import cors from "cors";
 import mongoose from "mongoose";
 import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { z } from "zod";
+import multer from "multer";
+import crypto from "crypto";
 import { verifySolTransfer } from "./verifyTransfer.js";
 
 const connection = new Connection(process.env.SOLANA_RPC || "https://api.devnet.solana.com", "confirmed");
@@ -33,7 +35,13 @@ const productSchema = new mongoose.Schema(
     priceUsdc: { type: Number, default: 0 },
     priceAudd: { type: Number, default: 0 },
     currency: { type: String, enum: ["SOL", "USDC", "AUDD"], default: "SOL" },
-    contentUrl: { type: String, required: true },
+    contentUrl: { type: String, default: "" },
+    deliveryMode: { type: String, enum: ["direct", "ipfs_encrypted"], default: "direct" },
+    ipfsCid: { type: String, default: "" },
+    encryptedContentKey: { type: String, default: "" },
+    encryptionAlgorithm: { type: String, default: "aes-256-gcm" },
+    fileName: { type: String, default: "" },
+    mimeType: { type: String, default: "" },
     coverUrl: { type: String, default: "" },
     thumbnailUrl: { type: String, default: "" },
     contentHash: { type: String, default: "" },
@@ -89,7 +97,13 @@ const createProductSchema = z
     priceUsdc: z.number().min(0),
     priceAudd: z.number().min(0),
     currency: z.enum(["SOL", "USDC", "AUDD"]).optional(),
-    contentUrl: z.string().url(),
+    contentUrl: z.string().url().optional(),
+    deliveryMode: z.enum(["direct", "ipfs_encrypted"]).optional(),
+    ipfsCid: z.string().max(120).optional(),
+    encryptedContentKey: z.string().max(4096).optional(),
+    encryptionAlgorithm: z.string().max(64).optional(),
+    fileName: z.string().max(256).optional(),
+    mimeType: z.string().max(128).optional(),
     coverUrl: z.string().max(12_000_000).optional(),
     thumbnailUrl: z.string().max(12_000_000).optional(),
     contentHash: z.string().max(128).optional(),
@@ -107,6 +121,16 @@ const createProductSchema = z
       return d.priceSol > 0;
     },
     { message: "Price must be positive for the selected currency" },
+  )
+  .refine(
+    (d) => {
+      const mode = d.deliveryMode ?? "direct";
+      if (mode === "ipfs_encrypted") {
+        return Boolean(d.ipfsCid?.trim()) && Boolean(d.encryptedContentKey?.trim());
+      }
+      return Boolean(d.contentUrl?.trim());
+    },
+    { message: "Delivery payload is invalid for the selected delivery mode" },
   );
 
 const updateProductSchema = z
@@ -119,6 +143,12 @@ const updateProductSchema = z
     priceAudd: z.number().min(0).optional(),
     currency: z.enum(["SOL", "USDC", "AUDD"]).optional(),
     contentUrl: z.string().url().optional(),
+    deliveryMode: z.enum(["direct", "ipfs_encrypted"]).optional(),
+    ipfsCid: z.string().max(120).optional(),
+    encryptedContentKey: z.string().max(4096).optional(),
+    encryptionAlgorithm: z.string().max(64).optional(),
+    fileName: z.string().max(256).optional(),
+    mimeType: z.string().max(128).optional(),
     coverUrl: z.string().max(12_000_000).optional(),
     thumbnailUrl: z.string().max(12_000_000).optional(),
     contentHash: z.string().max(128).optional(),
@@ -136,6 +166,16 @@ const updateProductSchema = z
       return (d.priceSol ?? 0) > 0;
     },
     { message: "Price must be positive for the selected currency" },
+  )
+  .refine(
+    (d) => {
+      const mode = d.deliveryMode ?? "direct";
+      if (mode === "ipfs_encrypted") {
+        return Boolean(d.ipfsCid?.trim()) && Boolean(d.encryptedContentKey?.trim());
+      }
+      return Boolean(d.contentUrl?.trim());
+    },
+    { message: "Delivery payload is invalid for the selected delivery mode" },
   );
 
 function parseCorsOrigins() {
@@ -147,6 +187,13 @@ function parseCorsOrigins() {
 }
 
 const allowedOrigins = parseCorsOrigins();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 30 * 1024 * 1024,
+    files: 10,
+  },
+});
 
 function corsOptions(origin, callback) {
   if (!origin) return callback(null, true);
@@ -240,6 +287,12 @@ export function createApp() {
         slug,
         currency: parsed.currency ?? "SOL",
         contentHash: parsed.contentHash ?? "",
+        deliveryMode: parsed.deliveryMode ?? "direct",
+        ipfsCid: parsed.ipfsCid ?? "",
+        encryptedContentKey: parsed.encryptedContentKey ?? "",
+        encryptionAlgorithm: parsed.encryptionAlgorithm ?? "aes-256-gcm",
+        fileName: parsed.fileName ?? "",
+        mimeType: parsed.mimeType ?? "",
         summary: parsed.summary ?? "",
         coverUrl: parsed.coverUrl ?? "",
         thumbnailUrl: parsed.thumbnailUrl ?? "",
@@ -286,6 +339,12 @@ export function createApp() {
         priceAudd: req.body.priceAudd ?? product.priceAudd,
         currency: req.body.currency ?? product.currency ?? "SOL",
         contentUrl: req.body.contentUrl ?? product.contentUrl,
+        deliveryMode: req.body.deliveryMode ?? product.deliveryMode ?? "direct",
+        ipfsCid: req.body.ipfsCid ?? product.ipfsCid ?? "",
+        encryptedContentKey: req.body.encryptedContentKey ?? product.encryptedContentKey ?? "",
+        encryptionAlgorithm: req.body.encryptionAlgorithm ?? product.encryptionAlgorithm ?? "aes-256-gcm",
+        fileName: req.body.fileName ?? product.fileName ?? "",
+        mimeType: req.body.mimeType ?? product.mimeType ?? "",
         coverUrl: req.body.coverUrl ?? product.coverUrl ?? "",
         thumbnailUrl: req.body.thumbnailUrl ?? product.thumbnailUrl ?? "",
         contentHash: req.body.contentHash ?? product.contentHash ?? "",
@@ -312,6 +371,12 @@ export function createApp() {
       product.priceAudd = parsed.priceAudd ?? 0;
       product.currency = parsed.currency ?? "SOL";
       product.contentUrl = parsed.contentUrl ?? product.contentUrl;
+      product.deliveryMode = parsed.deliveryMode ?? "direct";
+      product.ipfsCid = parsed.ipfsCid ?? "";
+      product.encryptedContentKey = parsed.encryptedContentKey ?? "";
+      product.encryptionAlgorithm = parsed.encryptionAlgorithm ?? "aes-256-gcm";
+      product.fileName = parsed.fileName ?? "";
+      product.mimeType = parsed.mimeType ?? "";
       product.coverUrl = parsed.coverUrl ?? "";
       product.thumbnailUrl = parsed.thumbnailUrl ?? parsed.coverUrl ?? "";
       product.contentHash = parsed.contentHash ?? "";
@@ -392,13 +457,56 @@ export function createApp() {
     return res.json({ ok: true });
   });
 
+  app.post("/api/digital-products/upload", upload.array("files", 10), async (req, res) => {
+    const files = req.files || [];
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ message: "At least one file is required." });
+    }
+
+    try {
+      const merged = Buffer.concat(files.map((f) => f.buffer));
+      const hashHex = crypto.createHash("sha256").update(merged).digest("hex");
+      // Placeholder CID-like identifier until a full IPFS pinning integration is wired.
+      const ipfsCid = `bafy${hashHex.slice(0, 56)}`;
+      const encryptedContentKey = crypto.randomBytes(48).toString("base64");
+      const primary = files[0];
+
+      return res.json({
+        deliveryMode: "ipfs_encrypted",
+        ipfsCid,
+        encryptedContentKey,
+        encryptionAlgorithm: "aes-256-gcm",
+        fileName: primary.originalname || "download.bin",
+        mimeType: primary.mimetype || "application/octet-stream",
+      });
+    } catch {
+      return res.status(500).json({ message: "Failed to process uploaded files." });
+    }
+  });
+
   app.post("/api/access/unlock", async (req, res) => {
     const { productId, buyerWallet } = req.body;
     if (!productId || !buyerWallet) return res.status(400).json({ message: "productId and buyerWallet required" });
     const record = await Purchase.findOne({ productId, buyerWallet, status: "confirmed" });
     if (!record) return res.status(403).json({ message: "No access" });
     const product = await Product.findById(productId);
-    return res.json({ contentUrl: product?.contentUrl || "" });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    if ((product.deliveryMode || "direct") === "ipfs_encrypted") {
+      return res.json({
+        mode: "ipfs_encrypted",
+        ipfsCid: product.ipfsCid || "",
+        encryptedContentKey: product.encryptedContentKey || "",
+        encryptionAlgorithm: product.encryptionAlgorithm || "aes-256-gcm",
+        fileName: product.fileName || "",
+        mimeType: product.mimeType || "application/octet-stream",
+      });
+    }
+    return res.json({
+      mode: "direct",
+      contentUrl: product.contentUrl || "",
+      fileName: product.fileName || "",
+      mimeType: product.mimeType || "application/octet-stream",
+    });
   });
 
   app.get("/api/purchases/wallet/:wallet", async (req, res) => {

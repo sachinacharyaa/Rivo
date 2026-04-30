@@ -5,10 +5,22 @@ import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { z } from "zod";
 import multer from "multer";
 import crypto from "crypto";
+import { create } from "ipfs-http-client";
 import { verifySolTransfer } from "./verifyTransfer.js";
 
 const connection = new Connection(process.env.SOLANA_RPC || "https://api.devnet.solana.com", "confirmed");
 const RIPPLE_FEE_WALLET = process.env.RIPPLE_FEE_WALLET || "G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw";
+const IPFS_HOST = process.env.IPFS_API_HOST || "127.0.0.1";
+const IPFS_PORT = Number(process.env.IPFS_API_PORT || 5001);
+const IPFS_PROTOCOL = process.env.IPFS_API_PROTOCOL || "http";
+const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "https://gateway.pinata.cloud/ipfs";
+const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
+
+const ipfs = create({
+  host: IPFS_HOST,
+  port: IPFS_PORT,
+  protocol: IPFS_PROTOCOL,
+});
 
 let mongoConnectPromise = null;
 
@@ -87,6 +99,11 @@ const createUniqueSlug = async (title) => {
   }
   return slug;
 };
+
+const buildIpfsUrls = (cid) => ({
+  downloadUrl: `${IPFS_GATEWAY_URL}/${cid}`,
+  backupUrl: `${IPFS_GATEWAY_FALLBACK_URL}/${cid}`,
+});
 
 const createProductSchema = z
   .object({
@@ -460,27 +477,32 @@ export function createApp() {
   app.post("/api/digital-products/upload", upload.array("files", 10), async (req, res) => {
     const files = req.files || [];
     if (!Array.isArray(files) || files.length === 0) {
-      return res.status(400).json({ message: "At least one file is required." });
+      return res.status(400).json({ message: "A file is required." });
+    }
+    if (files.length > 1) {
+      return res.status(400).json({ message: "Only one file can be uploaded per product." });
     }
 
     try {
-      const merged = Buffer.concat(files.map((f) => f.buffer));
-      const hashHex = crypto.createHash("sha256").update(merged).digest("hex");
-      // Placeholder CID-like identifier until a full IPFS pinning integration is wired.
-      const ipfsCid = `bafy${hashHex.slice(0, 56)}`;
-      const encryptedContentKey = crypto.randomBytes(48).toString("base64");
       const primary = files[0];
+      const result = await ipfs.add(primary.buffer);
+      const ipfsCid = result.cid.toString();
+      const encryptedContentKey = crypto.randomBytes(48).toString("base64");
+      const { downloadUrl, backupUrl } = buildIpfsUrls(ipfsCid);
 
       return res.json({
         deliveryMode: "ipfs_encrypted",
         ipfsCid,
+        downloadUrl,
+        backupUrl,
         encryptedContentKey,
         encryptionAlgorithm: "aes-256-gcm",
         fileName: primary.originalname || "download.bin",
         mimeType: primary.mimetype || "application/octet-stream",
       });
-    } catch {
-      return res.status(500).json({ message: "Failed to process uploaded files." });
+    } catch (error) {
+      console.error("IPFS upload failed", error);
+      return res.status(500).json({ message: "Failed to upload file to IPFS." });
     }
   });
 
@@ -492,9 +514,12 @@ export function createApp() {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
     if ((product.deliveryMode || "direct") === "ipfs_encrypted") {
+      const { downloadUrl, backupUrl } = buildIpfsUrls(product.ipfsCid || "");
       return res.json({
         mode: "ipfs_encrypted",
         ipfsCid: product.ipfsCid || "",
+        downloadUrl,
+        backupUrl,
         encryptedContentKey: product.encryptedContentKey || "",
         encryptionAlgorithm: product.encryptionAlgorithm || "aes-256-gcm",
         fileName: product.fileName || "",
@@ -507,6 +532,23 @@ export function createApp() {
       fileName: product.fileName || "",
       mimeType: product.mimeType || "application/octet-stream",
     });
+  });
+
+  app.get("/api/download/:productId", async (req, res) => {
+    const { productId } = req.params;
+    const buyerWallet = String(req.query.buyerWallet || "");
+    if (!buyerWallet) {
+      return res.status(400).json({ message: "buyerWallet query param is required" });
+    }
+    const record = await Purchase.findOne({ productId, buyerWallet, status: "confirmed" });
+    if (!record) return res.status(403).json({ message: "No access" });
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    if ((product.deliveryMode || "direct") !== "ipfs_encrypted" || !product.ipfsCid) {
+      return res.status(400).json({ message: "Product does not use IPFS delivery" });
+    }
+    const { downloadUrl, backupUrl } = buildIpfsUrls(product.ipfsCid);
+    return res.json({ downloadUrl, backupUrl, cid: product.ipfsCid });
   });
 
   app.get("/api/purchases/wallet/:wallet", async (req, res) => {

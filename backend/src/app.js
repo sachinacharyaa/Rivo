@@ -13,7 +13,7 @@ const RIPPLE_FEE_WALLET = process.env.RIPPLE_FEE_WALLET || "G6DKYcQnySUk1ZYYuR1H
 const IPFS_HOST = process.env.IPFS_API_HOST || "127.0.0.1";
 const IPFS_PORT = Number(process.env.IPFS_API_PORT || 5001);
 const IPFS_PROTOCOL = process.env.IPFS_API_PROTOCOL || "http";
-const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "https://gateway.pinata.cloud/ipfs";
+const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/ipfs";
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 
 const ipfs = create({

@@ -34,6 +34,8 @@ type AccessPayload =
   | {
       mode: "ipfs_encrypted";
       ipfsCid: string;
+      downloadUrl?: string;
+      backupUrl?: string;
       encryptedContentKey: string;
       encryptionAlgorithm?: string;
       fileName?: string;
@@ -706,11 +708,11 @@ function ProductPage() {
                   ) : (
                     <a
                       className="btn btn-secondary"
-                      href={`https://ipfs.io/ipfs/${accessPayload.ipfsCid}`}
+                      href={accessPayload.downloadUrl || accessPayload.backupUrl || `https://ipfs.io/ipfs/${accessPayload.ipfsCid}`}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Download encrypted file (IPFS)
+                      Download file
                     </a>
                   )}
                   {txSignature ? (
@@ -724,11 +726,6 @@ function ProductPage() {
                     </a>
                   ) : null}
                 </div>
-                {accessPayload.mode === "ipfs_encrypted" ? (
-                  <p className="product-public-micro">
-                    Encryption: {accessPayload.encryptionAlgorithm || "aes-256-gcm"} · key bundle is available after purchase.
-                  </p>
-                ) : null}
               </div>
             ) : null}
 

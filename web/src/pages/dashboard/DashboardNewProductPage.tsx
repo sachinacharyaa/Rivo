@@ -97,6 +97,8 @@ export function DashboardNewProductPage() {
       const uploadRes = await api.post<{
         deliveryMode: "ipfs_encrypted";
         ipfsCid: string;
+        downloadUrl: string;
+        backupUrl: string;
         encryptedContentKey: string;
         encryptionAlgorithm: string;
         fileName: string;
@@ -114,7 +116,7 @@ export function DashboardNewProductPage() {
         encryptionAlgorithm: uploadRes.data.encryptionAlgorithm,
         fileName: uploadRes.data.fileName,
         mimeType: uploadRes.data.mimeType,
-        contentUrl: "https://ipfs.io/ipfs/" + uploadRes.data.ipfsCid,
+        contentUrl: uploadRes.data.downloadUrl || uploadRes.data.backupUrl,
         coverUrl: draft.coverUrl || undefined,
         thumbnailUrl: draft.coverUrl || undefined,
         currency: draft.currency,

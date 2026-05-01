@@ -105,6 +105,23 @@ const buildIpfsUrls = (cid) => ({
   backupUrl: `${IPFS_GATEWAY_FALLBACK_URL}/${cid}`,
 });
 
+const getExtension = (fileName = "") => {
+  const cleaned = String(fileName || "").trim();
+  if (!cleaned) return "";
+  const lastDot = cleaned.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot === cleaned.length - 1) return "";
+  return cleaned.slice(lastDot);
+};
+
+const buildBuyerFileName = (product) => {
+  const title = String(product?.title || "").trim();
+  const extension = getExtension(product?.fileName || "");
+  if (!title) {
+    return product?.fileName || "download.bin";
+  }
+  return extension ? `${title}${extension}` : title;
+};
+
 const createProductSchema = z
   .object({
     title: z.string().min(2),
@@ -522,14 +539,14 @@ export function createApp() {
         backupUrl,
         encryptedContentKey: product.encryptedContentKey || "",
         encryptionAlgorithm: product.encryptionAlgorithm || "aes-256-gcm",
-        fileName: product.fileName || "",
+        fileName: buildBuyerFileName(product),
         mimeType: product.mimeType || "application/octet-stream",
       });
     }
     return res.json({
       mode: "direct",
       contentUrl: product.contentUrl || "",
-      fileName: product.fileName || "",
+      fileName: buildBuyerFileName(product),
       mimeType: product.mimeType || "application/octet-stream",
     });
   });
@@ -548,7 +565,12 @@ export function createApp() {
       return res.status(400).json({ message: "Product does not use IPFS delivery" });
     }
     const { downloadUrl, backupUrl } = buildIpfsUrls(product.ipfsCid);
-    return res.json({ downloadUrl, backupUrl, cid: product.ipfsCid });
+    return res.json({
+      downloadUrl,
+      backupUrl,
+      cid: product.ipfsCid,
+      fileName: buildBuyerFileName(product),
+    });
   });
 
   app.get("/api/purchases/wallet/:wallet", async (req, res) => {

@@ -700,6 +700,7 @@ function ProductPage() {
                     <a
                       className="btn btn-secondary"
                       href={accessPayload.contentUrl}
+                      download={accessPayload.fileName || product.title}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -709,6 +710,7 @@ function ProductPage() {
                     <a
                       className="btn btn-secondary"
                       href={accessPayload.downloadUrl || accessPayload.backupUrl || `https://ipfs.io/ipfs/${accessPayload.ipfsCid}`}
+                      download={accessPayload.fileName || product.title}
                       target="_blank"
                       rel="noreferrer"
                     >

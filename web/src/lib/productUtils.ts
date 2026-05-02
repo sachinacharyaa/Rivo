@@ -3,7 +3,7 @@ import type { ProductShape } from "../types/product";
 export const CRYPTO_OPTIONS = [
   { code: "SOL" as const, label: "SOL (Solana)", symbol: "◎" },
   { code: "USDC" as const, label: "USDC", symbol: "$" },
-  { code: "AUDD" as const, label: "AUDD (Australian Digital Dollar)", symbol: "$" },
+  { code: "AUDD" as const, label: "AUDD (Australian Digital Dollar)", symbol: "A$" },
 ];
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;

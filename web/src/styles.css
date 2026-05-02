@@ -1227,6 +1227,31 @@ textarea {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.dash-currency-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+}
+
+.dash-currency-icon--audd {
+  width: 19px;
+  height: 19px;
+  border: 1.7px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.dash-currency-icon--sm {
+  width: 17px;
+  height: 17px;
+  font-size: 7.5px;
+}
+
 .dash-chevron {
   font-size: 0.7rem;
   opacity: 0.7;
@@ -1267,6 +1292,12 @@ textarea {
 .dash-currency-menu__item--active {
   background: rgba(59, 130, 246, 0.35);
   color: #fff;
+}
+
+.dash-currency-menu__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .dash-price-bar__input {
@@ -1716,7 +1747,6 @@ textarea {
 .product-public-media {
   position: relative;
   width: 100%;
-  height: 560px;
   border-radius: 12px;
   overflow: hidden;
   background: #f3f0f8;
@@ -1729,8 +1759,9 @@ textarea {
 
 .product-public-media img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
   display: block;
 }
 
@@ -1956,10 +1987,6 @@ textarea {
 
   .product-public-panel {
     border-top: none;
-  }
-
-  .product-public-media {
-    height: 420px;
   }
 
   .product-public-unlock__head {

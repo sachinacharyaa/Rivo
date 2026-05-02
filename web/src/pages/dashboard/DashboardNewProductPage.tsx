@@ -48,6 +48,14 @@ export function DashboardNewProductPage() {
   });
 
   const selectedCrypto = CRYPTO_OPTIONS.find((c) => c.code === draft.currency) ?? CRYPTO_OPTIONS[0];
+  const renderCurrencyMark = (code: "SOL" | "USDC" | "AUDD", symbol: string, compact = false) => {
+    if (code !== "AUDD") return <span>{symbol}</span>;
+    return (
+      <span className={`dash-currency-icon dash-currency-icon--audd${compact ? " dash-currency-icon--sm" : ""}`} aria-hidden>
+        A$
+      </span>
+    );
+  };
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -391,7 +399,7 @@ export function DashboardNewProductPage() {
                       setCurrencyOpen((o) => !o);
                     }}
                   >
-                    <span>{selectedCrypto.symbol}</span>
+                    {renderCurrencyMark(selectedCrypto.code, selectedCrypto.symbol)}
                     <span className="dash-chevron">▾</span>
                   </button>
                   {currencyOpen ? (
@@ -406,7 +414,10 @@ export function DashboardNewProductPage() {
                               setCurrencyOpen(false);
                             }}
                           >
-                            {opt.label}
+                            <span className="dash-currency-menu__content">
+                              {renderCurrencyMark(opt.code, opt.symbol, true)}
+                              <span>{opt.label}</span>
+                            </span>
                           </button>
                         </li>
                       ))}

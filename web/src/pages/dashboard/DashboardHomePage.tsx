@@ -22,6 +22,7 @@ export function DashboardHomePage() {
   const [balanceSol, setBalanceSol] = useState<number | null>(null);
   const [products, setProducts] = useState<ProductShape[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
+  const [buyerPurchaseCount, setBuyerPurchaseCount] = useState(0);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -30,8 +31,11 @@ export function DashboardHomePage() {
 
   useEffect(() => {
     if (!wallet) return;
-    api.get<ProductShape[]>(`/products/creator/${wallet}`).then((r) => setProducts(r.data));
-    api.get<PurchaseRow[]>(`/purchases/creator/${wallet}`).then((r) => setPurchases(r.data));
+    void Promise.all([
+      api.get<ProductShape[]>(`/products/creator/${wallet}`).then((r) => setProducts(r.data)),
+      api.get<PurchaseRow[]>(`/purchases/creator/${wallet}`).then((r) => setPurchases(r.data)),
+      api.get<unknown[]>(`/purchases/wallet/${wallet}`).then((r) => setBuyerPurchaseCount(r.data.length)),
+    ]);
   }, [wallet]);
 
   const now = Date.now();
@@ -44,30 +48,24 @@ export function DashboardHomePage() {
 
   const totalSales = useMemo(() => products.reduce((s, p) => s + p.salesCount, 0), [products]);
 
-  const profileDone = typeof localStorage !== "undefined" && localStorage.getItem("Rivo_gs_profile") === "1";
-  const payoutDone = typeof localStorage !== "undefined" && localStorage.getItem("Rivo_gs_payout") === "1";
   const shareDone = typeof localStorage !== "undefined" && localStorage.getItem("Rivo_gs_share") === "1";
 
   const gs = {
     welcome: !!wallet,
-    profile: profileDone,
     product: products.length > 0,
-    follower: false,
     sale: totalSales > 0,
-    payout: payoutDone || totalSales > 0,
     listing: products.some((p) => p.status !== "draft"),
     share: shareDone,
+    checkout: buyerPurchaseCount > 0,
   };
 
   const cards = [
     { title: "Welcome aboard", desc: "Connect your Solana wallet to Rivo.", done: gs.welcome, icon: "✌" },
-    { title: "Make an impression", desc: "Customize your creator profile (coming soon).", done: gs.profile, icon: "🖌" },
     { title: "Showtime", desc: "Create your first product.", done: gs.product, icon: "🚀" },
-    { title: "Build your tribe", desc: "Get your first follower on-chain.", done: gs.follower, icon: "⚡" },
     { title: "Go live", desc: "Publish a product to the marketplace.", done: gs.listing, icon: "🌊" },
-    { title: "Spread the word", desc: "Share a product link with buyers.", done: gs.share, icon: "🔗" },
-    { title: "Cha-ching", desc: "Make your first sale.", done: gs.sale, icon: "🪙" },
-    { title: "Money inbound", desc: "Track payouts from your sales.", done: gs.payout, icon: "💰" },
+    { title: "Spread to world", desc: "Share a product link with buyers.", done: gs.share, icon: "🌍" },
+    { title: "Monetization", desc: "Make your first sale.", done: gs.sale, icon: "💰" },
+    { title: "Checkout", desc: "Purchase the product & unlock it", done: gs.checkout, icon: "🔓" },
   ];
 
   return (

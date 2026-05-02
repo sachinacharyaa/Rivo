@@ -1,196 +1,315 @@
 # Rivo
 
- - One-line pitch: Rivo is the Solana-native checkout and access layer for creators to sell digital    products and unlock them instantly with wallet-based proof of payment.                            
-  - Target user: Crypto-native creators selling high-value digital goods:                             
-      - researchers                                                                                   
-      - alpha communities                                                                             
-      - designers                                                                                     
-      - indie devs                                                                                    
-      - educators                                                                                     
-      - paid Discord/Telegram/X creators                                                              
-  - Killer differentiator: Instant wallet payment + instant wallet-based access unlock in one flow.   
-    Most products either handle payments or handle token-gating. Your wedge is doing both cleanly for 
-    digital products, with creator-controlled payouts and low fees.                                   
-  - MVP scope:                                                                                        
-      - Creator connects wallet                                                                       
-      - Creates a product with title, description, price, file/link                                   
-      - Sets payout wallet                                                                            
-      - Buyer connects wallet and pays                                                                
-      - On-chain payment is verified                                                                  
-      - Product unlocks instantly                                                                     
-      - Creator receives payout instantly                                                             
-      - Platform takes 1% fee                                                                         
-      - Support SOL first; mention USDC next only if not fully working yet                            
-  - Demo flow:                                                                                        
-      1. Creator opens Rivo and connects Phantom                                                    
-      2. Creator creates “Premium Trading Guide” or “Design Asset Pack”                               
-      3. Creator sets price and publishes                                                             
-      4. Buyer opens public product page                                                              
-      5. Buyer pays with wallet                                                                       
-      6. Transaction confirms on Solana                                                               
-      7. Backend verifies payment                                                                     
-      8. File/content unlocks instantly                                                               
-      9. Show creator payout and platform fee split                                                   
-     10. Show purchase history / proof of access                                                      
-  - Why judges would care:                                                                            
-      - It has a clear real user and monetization path                                                
-      - It uses Solana for something that actually benefits from Solana: fast, cheap, wallet-native   
-        settlement                                                                                    
-      - The demo is easy to understand in under 2 minutes                                             
-      - It is more practical than many “consumer crypto” ideas                                        
-      - It can grow beyond a hackathon into a real business                                           
-      - It has a strong extension path:                                                               
-          - USDC checkout                                                                             
-          - subscriptions
-          - NFT/token-gated perks                                                                     
-          - embedded checkout links                                                                   
-          - creator storefronts                                                                       
-                                    
+Rivo is a Solana-native checkout and access layer for creators selling digital products.
 
-the fastest way for a creator to sell a digital product on Solana and unlock access instantly  
-after payment
+Creators can publish a product, set a payout wallet, accept wallet payments, and give buyers access only after an on-chain payment is verified. The current MVP supports SOL checkout end-to-end with a 1% platform fee split. USDC and AUDD can be selected for listing/pricing UX, but on-chain checkout for those currencies is not enabled yet.
 
-## Repo layout
+## Why Rivo
 
-| Path | Role |
-|------|------|
-| `web/` | React + Vite + Tailwind + Solana Wallet Adapter (Phantom) |
-| `web/src/layouts/DashboardShell.tsx` | Wallet-gated creator shell (top bar + sidebar + `Outlet`) |
-| `web/src/pages/dashboard/` | **Home** (getting started + activity), **Products** (table), **New product** (3-step flow), connect screen |
-| `web/src/lib/` | Shared `api` client + product helpers |
-| `web/src/types/product.ts` | `ProductShape` type |
-| `backend/` | Express + Mongoose (product metadata, purchases, access) |
-| `programs/Rivo/` | **Anchor** program with a minimal `purchase` instruction (deploy when you want payments routed through the program) |
+Web2 creator platforms usually depend on payment processors like Stripe, which are not available everywhere and add operational friction before a creator can sell. Even after setup, platforms often take a large cut and delay payouts.
+
+Rivo uses Solana for the parts where crypto is genuinely useful:
+
+- wallet-native creator onboarding
+- low-fee payments
+- instant settlement to the creator payout wallet
+- verifiable buyer payment history
+- instant digital product unlock after payment
+- encrypted file delivery through IPFS metadata gated by backend access checks
+
+## Current Product Flow
+
+### Creator
+
+1. Connect a Phantom-compatible wallet.
+2. Open the dashboard.
+3. Create a digital product with title, description, cover, price, and file.
+4. Set a payout wallet.
+5. Publish the product.
+6. Share the public product link.
+
+### Buyer
+
+1. Open a public product page.
+2. Connect wallet.
+3. Pay with SOL.
+4. Backend verifies the confirmed Solana transaction.
+5. Rivo records the purchase.
+6. Buyer unlocks the file or content link immediately.
+
+## What Works Today
+
+- React marketplace and buyer-facing product pages
+- Wallet-gated creator dashboard
+- Product creation, editing, publishing, and listing
+- SOL checkout using `SystemProgram.transfer`
+- 1% platform fee split in the client transaction
+- Backend verification of buyer-to-creator and buyer-to-platform transfers
+- Idempotent purchase recording by transaction signature
+- Buyer purchase history
+- Creator sales history
+- Payout wallet settings
+- Direct-link delivery mode
+- IPFS encrypted delivery metadata after verified purchase
+- Vercel deployment layout for frontend + serverless API
+- Minimal Anchor `purchase(amount)` program for future on-chain routing
+
+## Currency Status
+
+| Currency | Listing UI | On-chain checkout | Notes |
+| --- | --- | --- | --- |
+| SOL | Yes | Yes | Current production checkout path |
+| USDC | Yes | No | Display/listing support only |
+| AUDD | Yes | No | Display/listing support only |
+
+## Architecture
+
+```text
+web/
+  React + Vite frontend
+  Solana Wallet Adapter + Phantom
+  Dashboard, marketplace, buyer pages
+
+backend/
+  Express API
+  MongoDB/Mongoose persistence
+  Solana transaction verification
+  IPFS upload and gated unlock metadata
+
+programs/ripple/
+  Anchor program for a minimal purchase instruction
+```
+
+### Payment Verification
+
+The frontend creates one SOL transaction with two transfers:
+
+- buyer -> creator payout wallet
+- buyer -> Rivo platform fee wallet
+
+The backend fetches the confirmed transaction from Solana RPC and verifies:
+
+- the transaction exists and did not fail
+- the buyer wallet matches
+- the creator payout wallet received the expected lamports
+- the platform wallet received the expected 1% fee
+- the transaction signature has not already been used for another purchase
+
+Only after this check does the API create the purchase record and allow `/api/access/unlock` to return delivery data.
+
+## Tech Stack
+
+- Frontend: React 19, Vite, TypeScript, Tailwind CSS, React Router, Framer Motion
+- Wallets: Solana Wallet Adapter, Phantom adapter
+- Solana: `@solana/web3.js`, devnet by default
+- Backend: Express 5, MongoDB, Mongoose, Zod, Multer
+- Storage: IPFS HTTP client with configurable gateway fallback
+- On-chain program: Anchor 0.31.1
+- Deployment: Vercel static build + Node serverless function
+
+## Repository Layout
+
+| Path | Purpose |
+| --- | --- |
+| `web/` | React app, wallet providers, dashboard, marketplace, buyer pages |
+| `web/src/lib/payment.ts` | SOL split-payment transaction builder |
+| `web/src/lib/api.ts` | Frontend API client |
+| `web/src/types/product.ts` | Shared product shape used by the UI |
+| `backend/src/app.js` | Express app, schemas, product/purchase/access routes |
+| `backend/src/verifyTransfer.js` | Solana transaction verification logic |
+| `backend/api/index.js` | Vercel serverless API entrypoint |
+| `programs/ripple/src/lib.rs` | Minimal Anchor purchase program |
+| `vercel.json` | Root deployment config for frontend and API |
 
 ## Prerequisites
 
 - Node.js 20+
-- MongoDB Atlas URI (or local Mongo)
-- Phantom (or compatible wallet) on **Devnet** for testing
-- Optional: [Anchor](https://www.anchor-lang.com/docs/installation) + Rust for on-chain builds
+- MongoDB Atlas URI or local MongoDB
+- Phantom wallet on the same Solana cluster as the app
+- IPFS daemon or compatible IPFS API if using file uploads
+- Optional: Rust + Anchor CLI for program builds
 
-## Backend
+## Environment Variables
 
-1. Copy env:
+### Backend
 
-   `cp backend/.env.example backend/.env`
+Create `backend/.env`:
 
-2. Set `MONGODB_URI` and `SOLANA_RPC` (must match the cluster your wallet uses, e.g. devnet).
+```env
+PORT=4000
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
+SOLANA_RPC=https://api.devnet.solana.com
+CORS_ORIGINS=http://localhost:5173
+RIPPLE_FEE_WALLET=G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw
+IPFS_API_HOST=127.0.0.1
+IPFS_API_PORT=5001
+IPFS_API_PROTOCOL=http
+IPFS_GATEWAY_URL=http://127.0.0.1:8081/ipfs
+IPFS_GATEWAY_FALLBACK_URL=https://ipfs.io/ipfs
+```
 
-3. Run:
+`RIPPLE_FEE_WALLET` is still the backend env name for the platform fee wallet. The product is now branded as Rivo, but the legacy env key remains in the code.
 
-   ```bash
-   cd backend
-   npm install
-   npm run dev
-   ```
+### Frontend
 
-API base: `http://localhost:4000/api` — try `GET /api/health`.
+Create `web/.env`:
 
-**Security:** never commit real database passwords. Rotate any credentials that were shared in plain text.
+```env
+VITE_API_URL=http://localhost:4000/api
+VITE_SOLANA_RPC=https://api.devnet.solana.com
+VITE_SOLANA_NETWORK=devnet
+VITE_ANALYTICS_DASHBOARD_URL=
+```
 
-## Frontend
+For Vercel, set `VITE_API_URL=/api` so the frontend calls the same-domain serverless API.
 
-1. Copy env:
+## Local Development
 
-   `cp web/.env.example web/.env`
+Install backend dependencies:
 
-2. Point `VITE_API_URL` at your API (default `http://localhost:4000/api`).
+```bash
+cd backend
+npm install
+npm run dev
+```
 
-3. Match Solana cluster: `VITE_SOLANA_RPC` + `VITE_SOLANA_NETWORK` should align with backend `SOLANA_RPC` (e.g. devnet).
+The API runs on `http://localhost:4000/api`.
 
-4. Run:
+Install frontend dependencies:
 
-   ```bash
-   cd web
-   rm -rf node_modules package-lock.json   # if Windows/npm left a broken tree
-   npm install
-   npm run dev
-   ```
+```bash
+cd web
+npm install
+npm run dev
+```
 
-Open the URL Vite prints (usually `http://localhost:5173`). The **landing page is this app’s `/` route** — not a separate static `index.html` at the repo root.
+The frontend usually runs on `http://localhost:5173`.
 
-## Production on Vercel
+Health check:
 
-This repo is configured for:
+```bash
+curl http://localhost:4000/api/health
+```
 
-- static frontend from `web/dist`
-- serverless API from `backend/api/index.js` (Express app)
-- SPA fallback for dashboard/product routes
+Expected response:
 
-### 1) Create one Vercel project from repo root
+```json
+{ "ok": true }
+```
 
-Vercel will use `vercel.json` in the root:
+## IPFS Notes
 
-- `/api/*` -> backend serverless function
-- all other paths -> frontend SPA build output
+Product file upload calls `/api/digital-products/upload`, which uses the configured IPFS API. By default, the backend expects:
 
-### 2) Configure environment variables in Vercel
+- IPFS API: `http://127.0.0.1:5001`
+- local gateway: `http://127.0.0.1:8081/ipfs`
+- fallback gateway: `https://ipfs.io/ipfs`
 
-Set these for **Preview** and **Production**:
+Only one file is accepted per product in the current UI/API flow. The backend stores the IPFS CID and encrypted delivery metadata, then only returns that metadata after a verified purchase.
 
-Backend/runtime:
+## API Summary
 
-- `MONGODB_URI` = your MongoDB Atlas connection string
-- `SOLANA_RPC` = cluster RPC (example: `https://api.devnet.solana.com`)
-- `CORS_ORIGINS` = comma-separated frontend origins (for example: `https://your-app.vercel.app`)
+All routes are prefixed with `/api`.
 
-Frontend/build:
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | API health check |
+| `GET` | `/products` | List published marketplace products |
+| `GET` | `/products/creator/:wallet` | List products for a creator |
+| `GET` | `/products/slug/:slug` | Load published product by slug |
+| `GET` | `/products/:id` | Load published product by id |
+| `GET` | `/products/:id/owner/:wallet` | Load product for owner editing |
+| `POST` | `/products` | Create product |
+| `POST` | `/products/:id/publish` | Publish product |
+| `PUT` | `/products/:id` | Update product |
+| `POST` | `/purchases/verify` | Verify SOL transfer and record purchase |
+| `POST` | `/access/unlock` | Return delivery data after verified purchase |
+| `GET` | `/download/:productId` | Return IPFS download metadata for a buyer |
+| `GET` | `/purchases/wallet/:wallet` | Buyer purchase history |
+| `GET` | `/purchases/creator/:wallet` | Creator sales history |
+| `GET` | `/creators/:wallet/payout` | Read creator payout wallet |
+| `POST` | `/creators/:wallet/payout` | Update payout wallet across creator products |
+| `POST` | `/digital-products/upload` | Upload one product file to IPFS |
 
-- `VITE_API_URL` = `/api` (same-domain API calls)
-- `VITE_SOLANA_RPC` = same cluster RPC as backend
-- `VITE_SOLANA_NETWORK` = `devnet` (or your cluster)
+## Deployment
 
-### 3) Deploy
+The root `vercel.json` deploys:
 
-Push to your connected branch (or run `vercel --prod`).
+- `web/` as the static frontend
+- `backend/api/index.js` as the serverless API
+- `/api/*` to the backend
+- all other routes to the SPA fallback
 
-### 4) Post-deploy verification checklist
+Required Vercel env vars:
 
-1. `GET /api/health` returns `{ "ok": true }`
-2. Connect wallet and open `/dashboard/home`
-3. Create and publish a product
-4. Open public product page and complete buy flow
-5. Verify unlock works after purchase
-6. Confirm analytics data appears in Vercel Analytics dashboard
+```env
+MONGODB_URI=
+SOLANA_RPC=https://api.devnet.solana.com
+CORS_ORIGINS=https://your-domain.vercel.app
+RIPPLE_FEE_WALLET=
+IPFS_API_HOST=
+IPFS_API_PORT=
+IPFS_API_PROTOCOL=
+IPFS_GATEWAY_URL=
+IPFS_GATEWAY_FALLBACK_URL=
+VITE_API_URL=/api
+VITE_SOLANA_RPC=https://api.devnet.solana.com
+VITE_SOLANA_NETWORK=devnet
+VITE_ANALYTICS_DASHBOARD_URL=
+```
 
-### Visitor analytics dashboard
+Post-deploy checks:
 
-The app now includes:
+1. `GET /api/health` returns `{ "ok": true }`.
+2. Wallet connects on the frontend.
+3. Creator can create and publish a product.
+4. Public product page loads by slug.
+5. Buyer can complete SOL checkout.
+6. Backend verifies the transaction.
+7. Buyer unlocks the product.
+8. Creator and buyer history pages show the purchase.
 
-- Vercel Web Analytics (`@vercel/analytics/react`)
-- Vercel Speed Insights (`@vercel/speed-insights/react`)
+## Anchor Program
 
-After deployment and traffic, view metrics in your Vercel project dashboard.
+The repo includes a minimal Anchor program:
 
-## MVP flow
+```rust
+pub fn purchase(ctx: Context<Purchase>, amount: u64) -> Result<()>
+```
 
-1. **Creator:** connect wallet → Dashboard → create product (title, description, SOL price, content URL).
-2. **Buyer:** open product page → connect wallet → **Buy now** → approve SOL transfer → API verifies **buyer → creator** for the **exact lamports** → MongoDB stores purchase → **unlock link**.
+It transfers lamports from the buyer signer to the creator account. The current web app does not route checkout through this program yet; it uses native `SystemProgram.transfer` and backend verification. The program is included as the base for a stricter on-chain purchase rail.
 
-## On-chain program (Anchor)
+Program id in `Anchor.toml`:
 
-From repo root (with Anchor installed):
+```text
+EaEq7oukxo1VA75P5zr8jCVZjNesF7ZavWy2A9QKAqTp
+```
+
+Build/deploy when Anchor is installed:
 
 ```bash
 anchor build
-anchor keys list          # optional: sync program id
+anchor keys list
 anchor deploy
 ```
 
-The deployed program exposes `purchase(amount)` transferring lamports from buyer to creator. The current web app uses **native `SystemProgram.transfer`**; the backend verifies that transfer. You can later switch the client to invoke this program and tighten verification to the program ID.
+If building on a case-sensitive filesystem, confirm the workspace member path in `Cargo.toml` matches the actual program folder path.
 
-## API routes (summary)
+## Roadmap
 
-- `GET /api/products` — marketplace list  
-- `GET /api/products/creator/:wallet` — creator’s products  
-- `GET /api/products/:id` — one product  
-- `POST /api/products` — create product  
-- `POST /api/purchases/verify` — verify tx + record sale  
-- `POST /api/access/unlock` — return content URL if purchased  
-- `GET /api/purchases/wallet/:wallet` — buyer history  
-- `GET /api/purchases/creator/:wallet` — sales to this creator  
+- Enable SPL token checkout for USDC.
+- Enable SPL token checkout for AUDD.
+- Move payment verification from native transfers to the Anchor program.
+- Add subscriptions and recurring access.
+- Add embedded checkout links for creators.
+- Add creator storefront pages.
+- Improve content encryption so buyer-side decryption uses a real per-purchase key flow.
 
-## License
+## Security Notes
 
-ISC (backend default). Adjust as needed.
+- Never commit real `.env` files.
+- Rotate any database credentials that were shared in plain text.
+- Keep frontend and backend Solana RPC URLs on the same cluster.
+- Treat public IPFS content as public; gate decryption metadata and access through verified purchases.
+- Backend unlock checks are required even if the public product page already knows the content URL.
+

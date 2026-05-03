@@ -7,6 +7,8 @@ import multer from "multer";
 import crypto from "crypto";
 import { create } from "ipfs-http-client";
 import { verifySolTransfer } from "./verifyTransfer.js";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 const connection = new Connection(process.env.SOLANA_RPC || "https://api.devnet.solana.com", "confirmed");
 const RIPPLE_FEE_WALLET = process.env.RIPPLE_FEE_WALLET || "G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw";
@@ -120,6 +122,49 @@ const buildBuyerFileName = (product) => {
     return product?.fileName || "download.bin";
   }
   return extension ? `${title}${extension}` : title;
+};
+
+const sanitizeAttachmentFileName = (name) => {
+  const s = String(name || "download")
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\0/g, "")
+    .trim()
+    .slice(0, 180);
+  return s || "download";
+};
+
+/** RFC 5987 + ASCII fallback so browsers save as product title, not IPFS CID. */
+const contentDispositionAttachment = (filename) => {
+  const safe = sanitizeAttachmentFileName(filename);
+  const ascii = safe.replace(/[^\x20-\x7E]/g, "_");
+  const star = encodeURIComponent(safe);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${star}`;
+};
+
+const fetchUpstreamForProduct = async (product) => {
+  const mode = product.deliveryMode || "direct";
+  if (mode === "ipfs_encrypted" && product.ipfsCid?.trim()) {
+    const urls = [`${IPFS_GATEWAY_URL}/${product.ipfsCid}`, `${IPFS_GATEWAY_FALLBACK_URL}/${product.ipfsCid}`];
+    for (const url of urls) {
+      try {
+        const upstream = await fetch(url, { redirect: "follow" });
+        if (!upstream.ok || !upstream.body) continue;
+        return upstream;
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+  const contentUrl = String(product.contentUrl || "").trim();
+  if (!/^https?:\/\//i.test(contentUrl)) return null;
+  try {
+    const upstream = await fetch(contentUrl, { redirect: "follow" });
+    if (!upstream.ok || !upstream.body) return null;
+    return upstream;
+  } catch {
+    return null;
+  }
 };
 
 const createProductSchema = z
@@ -550,6 +595,49 @@ export function createApp() {
       mimeType: product.mimeType || "application/octet-stream",
     });
   });
+
+  /**
+   * Streams the file with Content-Disposition so the saved name matches the product title.
+   * Browsers ignore <a download> for cross-origin IPFS URLs and use the CID instead.
+   * Registered at /api/... (normal) and /access/... (VITE_API_URL without /api, some proxies, Vercel path quirks).
+   */
+  const servePurchasedDownload = async (req, res) => {
+    const productId = String(req.query.productId || "");
+    const buyerWallet = String(req.query.buyerWallet || "");
+    if (!productId || !buyerWallet) {
+      return res.status(400).json({ message: "productId and buyerWallet are required" });
+    }
+    const record = await Purchase.findOne({ productId, buyerWallet, status: "confirmed" });
+    if (!record) return res.status(403).json({ message: "No access" });
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const attachmentName = buildBuyerFileName(product);
+    const disposition = contentDispositionAttachment(attachmentName);
+    const fallbackMime = product.mimeType || "application/octet-stream";
+
+    try {
+      const upstream = await fetchUpstreamForProduct(product);
+      if (!upstream) {
+        return res.status(502).json({ message: "Could not fetch file for download" });
+      }
+      const ct = upstream.headers.get("content-type") || fallbackMime;
+      res.setHeader("Content-Type", ct);
+      res.setHeader("Content-Disposition", disposition);
+      const cl = upstream.headers.get("content-length");
+      if (cl) res.setHeader("Content-Length", cl);
+      await pipeline(Readable.fromWeb(upstream.body), res);
+    } catch (e) {
+      console.error("download-file", e);
+      if (!res.headersSent) {
+        return res.status(502).json({ message: "Download failed" });
+      }
+      res.destroy(e);
+    }
+  };
+
+  app.get("/api/access/download-file", servePurchasedDownload);
+  app.get("/access/download-file", servePurchasedDownload);
 
   app.get("/api/download/:productId", async (req, res) => {
     const { productId } = req.params;

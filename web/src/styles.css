@@ -1952,6 +1952,19 @@ textarea {
 
 .product-public-unlock--hero .btn-secondary {
   color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.product-public-unlock--hero .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.58);
+}
+
+.product-public-unlock--hero .btn-secondary:focus-visible {
+  outline: none;
+  border-color: rgba(179, 147, 255, 0.95);
+  box-shadow: 0 0 0 3px rgba(179, 147, 255, 0.35);
 }
 
 .product-public-proof {
@@ -2564,29 +2577,6 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.gum-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.gum-tab {
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.gum-tab--active {
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: #fff;
-}
-
-.gum-tab--muted {
-  cursor: default;
-}
-
 .gum-table-wrap {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -2744,6 +2734,15 @@ textarea {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.gum-new-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
 }
 
 .gum-new-grid {

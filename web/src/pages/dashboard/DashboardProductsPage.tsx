@@ -60,12 +60,6 @@ export function DashboardProductsPage() {
         </div>
       </div>
 
-      <div className="gum-tabs">
-        <span className="gum-tab gum-tab--active">All products</span>
-        <span className="gum-tab gum-tab--muted">Affiliated</span>
-        <span className="gum-tab gum-tab--muted">Collabs</span>
-      </div>
-
       {loading ? (
         <p className="gum-muted">Loading…</p>
       ) : (

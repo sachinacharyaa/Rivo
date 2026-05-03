@@ -310,30 +310,17 @@ export function DashboardNewProductPage() {
             </p>
           ) : null}
         </div>
-        <div className="gum-new-top__actions">
-          {step < 3 ? (
-            <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
-              Cancel
-            </button>
-          ) : (
+        {step === 3 ? (
+          <div className="gum-new-top__actions">
             <Link to="/dashboard/products" className="gum-btn gum-btn--ghost">
               Back to products
             </Link>
-          )}
-          {step === 1 ? (
-            <button type="button" className="gum-btn gum-btn--pink" onClick={goCustomize} disabled={!canStep1}>
-              Next: Customize
-            </button>
-          ) : null}
-          {step === 2 ? (
-            <button type="submit" form="form-customize" className="gum-btn gum-btn--pink" disabled={submitting || !canStep2}>
-              {submitting ? "Saving…" : "Next: Share"}
-            </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {step === 1 ? (
+        <>
         <div className="gum-new-grid">
           <aside className="gum-new-aside">
             <p className="gum-muted">
@@ -439,9 +426,19 @@ export function DashboardNewProductPage() {
             {error ? <div className="dash-alert dash-alert--error">{error}</div> : null}
           </div>
         </div>
+        <div className="gum-new-footer-actions">
+          <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
+            Cancel
+          </button>
+          <button type="button" className="gum-btn gum-btn--pink" onClick={goCustomize} disabled={!canStep1}>
+            Next: Customize
+          </button>
+        </div>
+        </>
       ) : null}
 
       {step === 2 ? (
+        <>
         <div className="gum-customize-layout">
           <div className="gum-customize-form">
             <div className="gum-workflow-tabs">
@@ -618,6 +615,15 @@ export function DashboardNewProductPage() {
             </div>
           </aside>
         </div>
+        <div className="gum-new-footer-actions">
+          <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
+            Cancel
+          </button>
+          <button type="submit" form="form-customize" className="gum-btn gum-btn--pink" disabled={submitting || !canStep2}>
+            {submitting ? "Saving…" : "Next: Share"}
+          </button>
+        </div>
+        </>
       ) : null}
 
       {step === 3 && createdProduct ? (

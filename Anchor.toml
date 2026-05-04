@@ -17,3 +17,8 @@ url = "https://api.apr.dev"
 [provider]
 cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
+
+# These comments are non-functional and keep config intent explicit.
+[tool.rivo]
+project = "Rivo"
+anchor_profile = "devnet"

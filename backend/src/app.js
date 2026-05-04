@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { z } from "zod";
 import multer from "multer";
 import crypto from "crypto";
 import { create } from "ipfs-http-client";
-import { verifySolTransfer } from "./verifyTransfer.js";
+import { verifySolTransfer, verifySplTransfer } from "./verifyTransfer.js";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -17,6 +17,10 @@ const IPFS_PORT = Number(process.env.IPFS_API_PORT || 5001);
 const IPFS_PROTOCOL = process.env.IPFS_API_PROTOCOL || "http";
 const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/ipfs";
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
+const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "<PUSD_MINT_ADDRESS>";
+const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
+const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
 const ipfs = create({
   host: IPFS_HOST,
@@ -45,10 +49,11 @@ const productSchema = new mongoose.Schema(
     slug: { type: String, index: true },
     description: { type: String, required: true },
     summary: { type: String, default: "" },
+    price: { type: Number, default: 0 },
     priceSol: { type: Number, default: 0 },
     priceUsdc: { type: Number, default: 0 },
     priceAudd: { type: Number, default: 0 },
-    currency: { type: String, enum: ["SOL", "USDC", "AUDD"], default: "SOL" },
+    currency: { type: String, enum: ["PUSD", "SOL", "USDC", "AUDD"], default: "PUSD" },
     contentUrl: { type: String, default: "" },
     deliveryMode: { type: String, enum: ["direct", "ipfs_encrypted"], default: "direct" },
     ipfsCid: { type: String, default: "" },
@@ -74,7 +79,7 @@ const purchaseSchema = new mongoose.Schema(
     productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
     buyerWallet: { type: String, required: true, index: true },
     txSignature: { type: String, required: true, unique: true },
-    currency: { type: String, enum: ["SOL", "USDC", "AUDD"], default: "SOL" },
+    currency: { type: String, enum: ["PUSD", "SOL", "USDC", "AUDD"], default: "PUSD" },
     amount: { type: Number, required: true },
     amountSol: { type: Number, default: 0 },
     status: { type: String, default: "confirmed" },
@@ -108,6 +113,16 @@ const buildIpfsUrls = (cid) => ({
   downloadUrl: `${IPFS_GATEWAY_URL}/${cid}`,
   backupUrl: `${IPFS_GATEWAY_FALLBACK_URL}/${cid}`,
 });
+
+const deriveAtaAddress = (ownerAddress, mintAddress) => {
+  const owner = new PublicKey(ownerAddress);
+  const mint = new PublicKey(mintAddress);
+  const [ata] = PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  );
+  return ata.toBase58();
+};
 
 const getExtension = (fileName = "") => {
   const cleaned = String(fileName || "").trim();
@@ -174,10 +189,11 @@ const createProductSchema = z
     title: z.string().min(2),
     description: z.string().min(5),
     summary: z.string().max(2000).optional(),
+    price: z.number().min(0).optional(),
     priceSol: z.number().min(0),
     priceUsdc: z.number().min(0),
     priceAudd: z.number().min(0),
-    currency: z.enum(["SOL", "USDC", "AUDD"]).optional(),
+    currency: z.enum(["PUSD", "SOL", "USDC", "AUDD"]).optional(),
     contentUrl: z.string().url().optional(),
     deliveryMode: z.enum(["direct", "ipfs_encrypted"]).optional(),
     ipfsCid: z.string().max(120).optional(),
@@ -196,7 +212,8 @@ const createProductSchema = z
   })
   .refine(
     (d) => {
-      const c = d.currency ?? "SOL";
+      const c = d.currency ?? "PUSD";
+      if (c === "PUSD") return (d.price ?? 0) > 0;
       if (c === "USDC") return d.priceUsdc > 0;
       if (c === "AUDD") return d.priceAudd > 0;
       return d.priceSol > 0;
@@ -219,10 +236,11 @@ const updateProductSchema = z
     title: z.string().min(2).optional(),
     description: z.string().min(5).optional(),
     summary: z.string().max(2000).optional(),
+    price: z.number().min(0).optional(),
     priceSol: z.number().min(0).optional(),
     priceUsdc: z.number().min(0).optional(),
     priceAudd: z.number().min(0).optional(),
-    currency: z.enum(["SOL", "USDC", "AUDD"]).optional(),
+    currency: z.enum(["PUSD", "SOL", "USDC", "AUDD"]).optional(),
     contentUrl: z.string().url().optional(),
     deliveryMode: z.enum(["direct", "ipfs_encrypted"]).optional(),
     ipfsCid: z.string().max(120).optional(),
@@ -241,7 +259,8 @@ const updateProductSchema = z
   })
   .refine(
     (d) => {
-      const c = d.currency ?? "SOL";
+      const c = d.currency ?? "PUSD";
+      if (c === "PUSD") return (d.price ?? 0) > 0;
       if (c === "USDC") return (d.priceUsdc ?? 0) > 0;
       if (c === "AUDD") return (d.priceAudd ?? 0) > 0;
       return (d.priceSol ?? 0) > 0;
@@ -298,6 +317,14 @@ export function createApp() {
   });
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  app.get("/api/tokens", (_req, res) => {
+    return res.json({
+      PUSD: { symbol: "PUSD", mint: PUSD_MINT, decimals: 6, isDefault: true },
+      USDC: { symbol: "USDC", mint: USDC_MINT, decimals: 6 },
+      SOL: { symbol: "SOL", type: "native" },
+    });
+  });
 
   app.get("/api/products", async (_req, res) => {
     try {
@@ -366,7 +393,8 @@ export function createApp() {
       const product = await Product.create({
         ...parsed,
         slug,
-        currency: parsed.currency ?? "SOL",
+        currency: parsed.currency ?? "PUSD",
+        price: parsed.price ?? 0,
         contentHash: parsed.contentHash ?? "",
         deliveryMode: parsed.deliveryMode ?? "direct",
         ipfsCid: parsed.ipfsCid ?? "",
@@ -415,10 +443,11 @@ export function createApp() {
         title: req.body.title ?? product.title,
         description: req.body.description ?? product.description,
         summary: req.body.summary ?? product.summary ?? "",
+        price: req.body.price ?? product.price ?? 0,
         priceSol: req.body.priceSol ?? product.priceSol,
         priceUsdc: req.body.priceUsdc ?? product.priceUsdc,
         priceAudd: req.body.priceAudd ?? product.priceAudd,
-        currency: req.body.currency ?? product.currency ?? "SOL",
+        currency: req.body.currency ?? product.currency ?? "PUSD",
         contentUrl: req.body.contentUrl ?? product.contentUrl,
         deliveryMode: req.body.deliveryMode ?? product.deliveryMode ?? "direct",
         ipfsCid: req.body.ipfsCid ?? product.ipfsCid ?? "",
@@ -447,10 +476,11 @@ export function createApp() {
       product.title = parsed.title;
       product.description = parsed.description;
       product.summary = parsed.summary ?? "";
+      product.price = parsed.price ?? 0;
       product.priceSol = parsed.priceSol ?? 0;
       product.priceUsdc = parsed.priceUsdc ?? 0;
       product.priceAudd = parsed.priceAudd ?? 0;
-      product.currency = parsed.currency ?? "SOL";
+      product.currency = parsed.currency ?? "PUSD";
       product.contentUrl = parsed.contentUrl ?? product.contentUrl;
       product.deliveryMode = parsed.deliveryMode ?? "direct";
       product.ipfsCid = parsed.ipfsCid ?? "";
@@ -478,17 +508,18 @@ export function createApp() {
   });
 
   app.post("/api/purchases/verify", async (req, res) => {
-    const { productId, buyerWallet, txSignature } = req.body;
+    const { productId, buyerWallet, txSignature, currency } = req.body;
     if (!productId || !buyerWallet || !txSignature) {
       return res.status(400).json({ message: "productId, buyerWallet, and txSignature are required" });
     }
 
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
-    if (product.currency === "USDC") {
+    const checkoutCurrency = currency || product.currency || "PUSD";
+    if (checkoutCurrency === "USDC") {
       return res.status(400).json({ message: "USDC checkout is not enabled yet — list in USDC but buyers pay in SOL once you switch currency to SOL." });
     }
-    if (product.priceSol <= 0) {
+    if (checkoutCurrency !== "PUSD" && product.priceSol <= 0) {
       return res.status(400).json({ message: "This product has no SOL price" });
     }
 
@@ -509,25 +540,44 @@ export function createApp() {
       return res.json({ ok: true, idempotent: true });
     }
 
-    const check = await verifySolTransfer(
-      connection,
-      txSignature,
-      buyerWallet,
-      payoutWallet,
-      RIPPLE_FEE_WALLET,
-      creatorLamports.toString(),
-      feeLamports.toString(),
-    );
-    if (!check.ok) return res.status(400).json({ message: check.reason || "Verification failed" });
+    let check;
+    if (checkoutCurrency === "PUSD") {
+      if (!product.price || product.price <= 0) {
+        return res.status(400).json({ message: "This product has no PUSD price" });
+      }
+      if (PUSD_MINT.startsWith("<")) {
+        return res.status(500).json({ message: "PUSD mint is not configured on backend" });
+      }
+      const destinationAta = deriveAtaAddress(payoutWallet, PUSD_MINT);
+      check = await verifySplTransfer(
+        connection,
+        txSignature,
+        PUSD_MINT,
+        destinationAta,
+        String(product.price),
+      );
+      if (!check.ok) return res.status(400).json({ message: check.reason || "PUSD verification failed" });
+    } else {
+      check = await verifySolTransfer(
+        connection,
+        txSignature,
+        buyerWallet,
+        payoutWallet,
+        RIPPLE_FEE_WALLET,
+        creatorLamports.toString(),
+        feeLamports.toString(),
+      );
+      if (!check.ok) return res.status(400).json({ message: check.reason || "Verification failed" });
+    }
 
     try {
       await Purchase.create({
         productId,
         buyerWallet,
         txSignature,
-        currency: "SOL",
-        amount: product.priceSol,
-        amountSol: product.priceSol,
+        currency: checkoutCurrency,
+        amount: checkoutCurrency === "PUSD" ? product.price : product.priceSol,
+        amountSol: checkoutCurrency === "SOL" ? product.priceSol : 0,
         status: "confirmed",
       });
     } catch (e) {

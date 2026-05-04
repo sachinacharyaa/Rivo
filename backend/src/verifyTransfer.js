@@ -1,6 +1,7 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58();
+const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 /**
  * Verify a confirmed transaction contains split system transfers:
@@ -58,6 +59,47 @@ export async function verifySolTransfer(connection, signature, buyerWallet, crea
       `platform=${wantFee.toString()} lamports; parsed creator=${parsedMatch.toCreator.toString()}, ` +
       `parsed platform=${parsedMatch.toPlatform.toString()}.`,
   };
+}
+
+export async function verifySplTransfer(connection, signature, mintAddress, destinationAtaAddress, expectedAmount) {
+  const parsed = await connection.getParsedTransaction(signature, {
+    maxSupportedTransactionVersion: 0,
+    commitment: "confirmed",
+  });
+  if (!parsed) return { ok: false, reason: "Transaction not found" };
+  if (parsed.meta?.err) return { ok: false, reason: "Transaction failed on-chain" };
+
+  const destinationAta = destinationAtaAddress;
+  const mint = mintAddress;
+  const expected = BigInt(expectedAmount);
+
+  const keys = getAccountKeysForTx({
+    transaction: parsed.transaction,
+    meta: parsed.meta,
+  });
+  let destinationIndex = -1;
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i].toBase58() === destinationAta) {
+      destinationIndex = i;
+      break;
+    }
+  }
+  if (destinationIndex < 0) return { ok: false, reason: "Destination token account not part of transaction" };
+
+  const pre = tokenBalanceAmountForIndex(parsed.meta?.preTokenBalances, destinationIndex, mint);
+  const post = tokenBalanceAmountForIndex(parsed.meta?.postTokenBalances, destinationIndex, mint);
+  const delta = post - pre;
+  if (delta !== expected) {
+    return {
+      ok: false,
+      reason: `Destination token delta mismatch. expected=${expected.toString()} got=${delta.toString()}`,
+    };
+  }
+
+  const hasTransferIx = hasSplTransferInstruction(parsed, mint, destinationAta, expected);
+  if (!hasTransferIx) return { ok: false, reason: "No matching SPL transfer instruction found" };
+
+  return { ok: true };
 }
 
 function programIdString(ix) {
@@ -169,4 +211,39 @@ function verifyByBalanceDelta(tx, buyer, creator, platform, wantCreatorLamports,
     toCreator,
     toPlatform,
   };
+}
+
+function tokenBalanceAmountForIndex(balances, accountIndex, mint) {
+  if (!balances?.length) return 0n;
+  const match = balances.find((b) => b.accountIndex === accountIndex && b.mint === mint);
+  if (!match?.uiTokenAmount?.amount) return 0n;
+  return BigInt(match.uiTokenAmount.amount);
+}
+
+function hasSplTransferInstruction(parsedTx, mint, destinationAta, expectedAmount) {
+  const candidates = [];
+  const { message } = parsedTx.transaction;
+  const outer = "instructions" in message ? message.instructions : [];
+  for (const ix of outer) candidates.push(ix);
+  if (parsedTx.meta?.innerInstructions) {
+    for (const group of parsedTx.meta.innerInstructions) {
+      for (const ix of group.instructions) candidates.push(ix);
+    }
+  }
+
+  const expected = BigInt(expectedAmount);
+  for (const ix of candidates) {
+    if (programIdString(ix) !== TOKEN_PROGRAM_ID) continue;
+    const parsed = ix.parsed;
+    if (!parsed || (parsed.type !== "transfer" && parsed.type !== "transferChecked")) continue;
+    const info = parsed.info || {};
+    const dest = info.destination || info.account;
+    if (dest !== destinationAta) continue;
+    if (parsed.type === "transferChecked" && info.mint && info.mint !== mint) continue;
+    const amount = info.tokenAmount?.amount || info.amount;
+    if (!amount) continue;
+    if (BigInt(amount) === expected) return true;
+  }
+
+  return false;
 }

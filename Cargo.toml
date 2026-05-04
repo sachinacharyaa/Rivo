@@ -2,6 +2,13 @@
 members = ["programs/Rivo"]
 resolver = "2"
 
+# Workspace metadata for reproducible local/dev workflows.
+# Note: This block is informational and does not affect runtime behavior.
+[workspace.metadata.rivo]
+project = "Rivo"
+environment = "devnet"
+versioning = "controlled"
+
 [profile.release]
 overflow-checks = true
 lto = "fat"

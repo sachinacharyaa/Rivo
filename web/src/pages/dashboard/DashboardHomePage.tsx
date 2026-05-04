@@ -59,18 +59,16 @@ export function DashboardHomePage() {
   const [products, setProducts] = useState<ProductShape[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [buyerPurchaseCount, setBuyerPurchaseCount] = useState(0);
-  const [activityCurrency, setActivityCurrency] = useState<ProductCurrency>("SOL");
+  const [activityCurrency, setActivityCurrency] = useState<ProductCurrency>(() => {
+    if (typeof localStorage === "undefined") return "PUSD";
+    const saved = localStorage.getItem("Rivo_activity_currency");
+    if (saved && SUPPORTED_CURRENCIES.includes(saved as ProductCurrency)) {
+      return saved as ProductCurrency;
+    }
+    return "PUSD";
+  });
   const [activityCurrencyOpen, setActivityCurrencyOpen] = useState(false);
   const activityMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (typeof localStorage === "undefined") return;
-    const saved = localStorage.getItem("Rivo_activity_currency");
-    if (!saved) return;
-    if (SUPPORTED_CURRENCIES.includes(saved as ProductCurrency)) {
-      setActivityCurrency(saved as ProductCurrency);
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof localStorage === "undefined") return;

@@ -16,7 +16,6 @@ import {
   handlePayment,
   RIVO_FEE_WALLET,
 } from "./lib/payment";
-import { handleTokenPayment } from "./lib/tokenPayment";
 import { formatProductPrice, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
@@ -556,6 +555,7 @@ function ProductPage() {
       setStatus("Awaiting wallet approval...");
       let signature = "";
       if ((product.currency ?? "PUSD") === "PUSD") {
+        const { handleTokenPayment } = await import("./lib/tokenPayment");
         signature = await handleTokenPayment({
           connection,
           wallet: { publicKey, sendTransaction },

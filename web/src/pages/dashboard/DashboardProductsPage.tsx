@@ -2,8 +2,37 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../lib/api";
-import { formatProductPrice, productPublicPath, productPublicUrl } from "../../lib/productUtils";
+import {
+  formatProductPrice,
+  formatTokenAmount,
+  getProductPriceAmount,
+  normalizeCurrency,
+  productPublicPath,
+  productPublicUrl,
+  SUPPORTED_CURRENCIES,
+  type ProductCurrency,
+} from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
+
+type CurrencyTotals = Record<ProductCurrency, number>;
+
+function emptyCurrencyTotals(): CurrencyTotals {
+  return { SOL: 0, USDC: 0, AUDD: 0 };
+}
+
+function CurrencyTotalsList({ totals }: { totals: CurrencyTotals }) {
+  const active = SUPPORTED_CURRENCIES.filter((currency) => totals[currency] > 0);
+  const currencies = active.length > 0 ? active : (["SOL"] as ProductCurrency[]);
+  return (
+    <div className="gum-token-stack">
+      {currencies.map((currency) => (
+        <span key={currency} className="gum-token-stack__line">
+          {formatTokenAmount(totals[currency], currency)}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function DashboardProductsPage() {
   const { publicKey } = useWallet();
@@ -29,10 +58,11 @@ export function DashboardProductsPage() {
 
   const totals = useMemo(() => {
     const sales = filtered.reduce((a, p) => a + p.salesCount, 0);
-    const revenue = filtered.reduce((a, p) => {
-      if (p.currency === "USDC") return a;
-      return a + p.priceSol * p.salesCount;
-    }, 0);
+    const revenue = filtered.reduce<CurrencyTotals>((acc, p) => {
+      const currency = normalizeCurrency(p.currency);
+      acc[currency] += getProductPriceAmount(p) * p.salesCount;
+      return acc;
+    }, emptyCurrencyTotals());
     return { sales, revenue };
   }, [filtered]);
 
@@ -87,7 +117,8 @@ export function DashboardProductsPage() {
                 </tr>
               ) : (
                 filtered.map((p) => {
-                  const rev = p.currency === "USDC" ? 0 : p.priceSol * p.salesCount;
+                  const currency = normalizeCurrency(p.currency);
+                  const rev = getProductPriceAmount(p) * p.salesCount;
                   const status = p.status === "draft" ? "Draft" : "Published";
                   return (
                     <tr key={p._id}>
@@ -108,7 +139,7 @@ export function DashboardProductsPage() {
                         </div>
                       </td>
                       <td>{p.salesCount}</td>
-                      <td>{p.currency === "USDC" ? "—" : `${rev.toFixed(2)} SOL`}</td>
+                      <td>{formatTokenAmount(rev, currency)}</td>
                       <td>{formatProductPrice(p)}</td>
                       <td>
                         <span className={`gum-status gum-status--${status === "Published" ? "live" : "draft"}`}>{status}</span>
@@ -128,7 +159,9 @@ export function DashboardProductsPage() {
                 <tr className="gum-table__foot">
                   <td>Total</td>
                   <td>{totals.sales}</td>
-                  <td>{totals.revenue.toFixed(2)} SOL</td>
+                  <td>
+                    <CurrencyTotalsList totals={totals.revenue} />
+                  </td>
                   <td colSpan={3} />
                 </tr>
               </tfoot>

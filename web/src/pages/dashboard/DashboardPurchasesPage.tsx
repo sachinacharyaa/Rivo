@@ -3,18 +3,49 @@ import { Link } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
 import { api } from "../../lib/api";
-import { productPublicPath } from "../../lib/productUtils";
+import { formatTokenAmount, productPublicPath, SUPPORTED_CURRENCIES, type ProductCurrency } from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
 
 type PurchaseRecord = {
   _id: string;
   buyerWallet: string;
   txSignature: string;
-  amountSol: number;
+  currency?: ProductCurrency;
+  amount?: number;
+  amountSol?: number;
   status: string;
   createdAt?: string;
   productId?: ProductShape | null;
 };
+
+type CurrencyTotals = Record<ProductCurrency, number>;
+
+function emptyCurrencyTotals(): CurrencyTotals {
+  return { SOL: 0, USDC: 0, AUDD: 0 };
+}
+
+function purchaseCurrency(row: PurchaseRecord): ProductCurrency {
+  return row.currency ?? "SOL";
+}
+
+function purchaseAmount(row: PurchaseRecord) {
+  return row.amount ?? row.amountSol ?? 0;
+}
+
+function CurrencyTotalsInline({ totals }: { totals: CurrencyTotals }) {
+  const active = SUPPORTED_CURRENCIES.filter((currency) => totals[currency] > 0);
+  const currencies = active.length > 0 ? active : (["SOL"] as ProductCurrency[]);
+  return (
+    <>
+      {currencies.map((currency, index) => (
+        <span key={currency}>
+          {index > 0 ? " / " : ""}
+          {formatTokenAmount(totals[currency], currency)}
+        </span>
+      ))}
+    </>
+  );
+}
 
 function shorten(address: string) {
   if (!address) return "";
@@ -47,7 +78,12 @@ export function DashboardPurchasesPage() {
   }, [wallet]);
 
   const totalSpent = useMemo(
-    () => items.reduce((acc, p) => acc + (p.amountSol || 0), 0),
+    () =>
+      items.reduce<CurrencyTotals>((acc, p) => {
+        const currency = purchaseCurrency(p);
+        acc[currency] += purchaseAmount(p);
+        return acc;
+      }, emptyCurrencyTotals()),
     [items],
   );
 
@@ -69,7 +105,7 @@ export function DashboardPurchasesPage() {
               {items.length} purchase{items.length === 1 ? "" : "s"}
             </span>
             <span className="gum-chip gum-chip--muted">
-              Total spent: {totalSpent.toFixed(2)} SOL
+              Total spent: <CurrencyTotalsInline totals={totalSpent} />
             </span>
           </div>
         </div>
@@ -122,7 +158,7 @@ export function DashboardPurchasesPage() {
                     <td>
                       {product ? shorten(product.creatorWallet) : "—"}
                     </td>
-                    <td>{(p.amountSol || 0).toFixed(2)} SOL</td>
+                    <td>{formatTokenAmount(purchaseAmount(p), purchaseCurrency(p))}</td>
                     <td>
                       <span
                         className={`gum-status gum-status--${
@@ -156,4 +192,3 @@ export function DashboardPurchasesPage() {
     </div>
   );
 }
-

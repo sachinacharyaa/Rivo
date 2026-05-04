@@ -291,10 +291,11 @@ export function DashboardNewProductPage() {
     return () => document.removeEventListener("selectionchange", onSelection);
   }, [step]);
 
-  const previewProduct: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc"> = {
+  const previewProduct: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceAudd"> = {
     currency: draft.currency,
     priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
     priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
+    priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
   };
 
   return (

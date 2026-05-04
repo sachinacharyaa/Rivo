@@ -1,18 +1,51 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../lib/api";
+import { formatTokenAmount, SUPPORTED_CURRENCIES, type ProductCurrency } from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
 
 type PurchaseRow = {
   _id: string;
-  amountSol: number;
+  currency?: ProductCurrency;
+  amount?: number;
+  amountSol?: number;
+  productId?:
+    | Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceAudd">
+    | string
+    | null;
   createdAt: string;
 };
 
-function sumPurchasesInRange(rows: PurchaseRow[], afterMs: number) {
-  return rows.filter((r) => new Date(r.createdAt).getTime() >= afterMs).reduce((s, r) => s + r.amountSol, 0);
+function purchaseCurrency(row: PurchaseRow): ProductCurrency {
+  if (row.productId && typeof row.productId !== "string" && row.productId.currency) {
+    return row.productId.currency;
+  }
+  return row.currency ?? "SOL";
+}
+
+function purchaseAmountForCurrency(row: PurchaseRow, currency: ProductCurrency) {
+  const product = row.productId && typeof row.productId !== "string" ? row.productId : null;
+  const rowCurrency = purchaseCurrency(row);
+
+  if (product) {
+    if (currency === "USDC") return rowCurrency === "USDC" ? product.priceUsdc ?? 0 : 0;
+    if (currency === "AUDD") return rowCurrency === "AUDD" ? product.priceAudd ?? 0 : 0;
+    if (rowCurrency === "USDC" || rowCurrency === "AUDD") return 0;
+    return product.priceSol ?? row.amountSol ?? 0;
+  }
+
+  if (row.amount !== undefined && rowCurrency === currency) return row.amount;
+  if (currency === "SOL") return row.amountSol ?? 0;
+  return 0;
+}
+
+function sumPurchases(rows: PurchaseRow[], currency: ProductCurrency, afterMs = 0) {
+  return rows.reduce((total, row) => {
+    if (afterMs > 0 && new Date(row.createdAt).getTime() < afterMs) return total;
+    return total + purchaseAmountForCurrency(row, currency);
+  }, 0);
 }
 
 export function DashboardHomePage() {
@@ -23,6 +56,17 @@ export function DashboardHomePage() {
   const [products, setProducts] = useState<ProductShape[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [buyerPurchaseCount, setBuyerPurchaseCount] = useState(0);
+  const [activityCurrency, setActivityCurrency] = useState<ProductCurrency>("SOL");
+  const [activityCurrencyOpen, setActivityCurrencyOpen] = useState(false);
+  const activityMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (!activityMenuRef.current?.contains(e.target as Node)) setActivityCurrencyOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
 
   useEffect(() => {
     if (!publicKey) return;
@@ -42,9 +86,9 @@ export function DashboardHomePage() {
   const d7 = now - 7 * 86400000;
   const d30 = now - 30 * 86400000;
 
-  const last7 = useMemo(() => sumPurchasesInRange(purchases, d7), [purchases, d7]);
-  const last30 = useMemo(() => sumPurchasesInRange(purchases, d30), [purchases, d30]);
-  const totalEarned = useMemo(() => purchases.reduce((s, p) => s + p.amountSol, 0), [purchases]);
+  const last7 = useMemo(() => sumPurchases(purchases, activityCurrency, d7), [purchases, activityCurrency, d7]);
+  const last30 = useMemo(() => sumPurchases(purchases, activityCurrency, d30), [purchases, activityCurrency, d30]);
+  const totalEarned = useMemo(() => sumPurchases(purchases, activityCurrency), [purchases, activityCurrency]);
 
   const totalSales = useMemo(() => products.reduce((s, p) => s + p.salesCount, 0), [products]);
 
@@ -89,23 +133,63 @@ export function DashboardHomePage() {
       </section>
 
       <section className="gum-section">
-        <h2 className="gum-section__title">Activity</h2>
+        <div className="gum-section__title-row">
+          <h2 className="gum-section__title">Activity</h2>
+          <div className="gum-activity-currency" ref={activityMenuRef}>
+            <button
+              type="button"
+              className="gum-activity-currency__trigger"
+              aria-expanded={activityCurrencyOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActivityCurrencyOpen((open) => !open);
+              }}
+            >
+              <span>{activityCurrency}</span>
+              <span className="gum-activity-currency__arrow">▾</span>
+            </button>
+            {activityCurrencyOpen ? (
+              <ul className="gum-activity-currency__menu" role="listbox" aria-label="Activity currency">
+                {SUPPORTED_CURRENCIES.map((currency) => (
+                  <li key={currency}>
+                    <button
+                      type="button"
+                      className={`gum-activity-currency__item${currency === activityCurrency ? " gum-activity-currency__item--active" : ""}`}
+                      onClick={() => {
+                        setActivityCurrency(currency);
+                        setActivityCurrencyOpen(false);
+                      }}
+                    >
+                      {currency}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </div>
         <div className="gum-activity-row">
           <div className="gum-metric-card">
             <div className="gum-metric-card__label">Balance</div>
-            <div className="gum-metric-card__value">{balanceSol !== null ? `${balanceSol.toFixed(4)} SOL` : "—"}</div>
+            <div className="gum-metric-card__value">
+              {activityCurrency === "SOL"
+                ? balanceSol !== null
+                  ? formatTokenAmount(balanceSol, "SOL", 4)
+                  : "--"
+                : `-- ${activityCurrency}`}
+            </div>
           </div>
           <div className="gum-metric-card">
             <div className="gum-metric-card__label">Last 7 days</div>
-            <div className="gum-metric-card__value">{last7.toFixed(2)} SOL</div>
+            <div className="gum-metric-card__value">{formatTokenAmount(last7, activityCurrency)}</div>
           </div>
           <div className="gum-metric-card">
             <div className="gum-metric-card__label">Last 30 days</div>
-            <div className="gum-metric-card__value">{last30.toFixed(2)} SOL</div>
+            <div className="gum-metric-card__value">{formatTokenAmount(last30, activityCurrency)}</div>
           </div>
           <div className="gum-metric-card">
             <div className="gum-metric-card__label">Total earnings</div>
-            <div className="gum-metric-card__value">{totalEarned.toFixed(2)} SOL</div>
+            <div className="gum-metric-card__value">{formatTokenAmount(totalEarned, activityCurrency)}</div>
           </div>
         </div>
       </section>

@@ -507,6 +507,20 @@ function ProductPage() {
       .catch(() => undefined);
   }, [product, wallet]);
 
+  const verifiedDownloadHref = useMemo(() => {
+    if (!product || !wallet) return "";
+    if (!api.defaults.baseURL) return "";
+    try {
+      return axios.getUri({
+        baseURL: api.defaults.baseURL,
+        url: "/access/download-file",
+        params: { productId: product._id, buyerWallet: wallet },
+      });
+    } catch {
+      return "";
+    }
+  }, [product, wallet]);
+
   const buy = async () => {
     if (!product) return;
     setError("");
@@ -599,6 +613,18 @@ function ProductPage() {
   const explorerProofUrl = txSignature
     ? `https://explorer.solana.com/tx/${txSignature}?cluster=${networkLabel}`
     : "";
+
+  const rawFileHref =
+    accessPayload?.mode === "direct"
+      ? accessPayload.contentUrl
+      : accessPayload?.mode === "ipfs_encrypted"
+        ? accessPayload.downloadUrl ||
+          accessPayload.backupUrl ||
+          (accessPayload.ipfsCid ? `https://ipfs.io/ipfs/${accessPayload.ipfsCid}` : "")
+        : "";
+
+  const downloadHref = verifiedDownloadHref || rawFileHref;
+  const downloadName = accessPayload?.fileName || product.title;
 
   return (
     <Layout>
@@ -699,9 +725,8 @@ function ProductPage() {
                   {accessPayload.mode === "direct" ? (
                     <a
                       className="btn btn-secondary"
-                      href={accessPayload.contentUrl}
-                      download={accessPayload.fileName || product.title}
-                      target="_blank"
+                      href={downloadHref || "#"}
+                      download={downloadName}
                       rel="noreferrer"
                     >
                       Download file
@@ -709,9 +734,8 @@ function ProductPage() {
                   ) : (
                     <a
                       className="btn btn-secondary"
-                      href={accessPayload.downloadUrl || accessPayload.backupUrl || `https://ipfs.io/ipfs/${accessPayload.ipfsCid}`}
-                      download={accessPayload.fileName || product.title}
-                      target="_blank"
+                      href={downloadHref || "#"}
+                      download={downloadName}
                       rel="noreferrer"
                     >
                       Download file

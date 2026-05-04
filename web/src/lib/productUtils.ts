@@ -1,5 +1,7 @@
 import type { ProductShape } from "../types/product";
 
+export type ProductCurrency = NonNullable<ProductShape["currency"]>;
+
 export const CRYPTO_OPTIONS = [
   { code: "SOL" as const, label: "SOL (Solana)", symbol: "◎" },
   { code: "USDC" as const, label: "USDC", symbol: "$" },
@@ -8,11 +10,42 @@ export const CRYPTO_OPTIONS = [
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+export const SUPPORTED_CURRENCIES: ProductCurrency[] = ["SOL", "USDC", "AUDD"];
+
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+
+function formatter(minimumFractionDigits: number, maximumFractionDigits: number) {
+  const key = `${minimumFractionDigits}:${maximumFractionDigits}`;
+  const cached = numberFormatters.get(key);
+  if (cached) return cached;
+  const next = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits,
+    maximumFractionDigits,
+  });
+  numberFormatters.set(key, next);
+  return next;
+}
+
+export function normalizeCurrency(currency?: ProductShape["currency"]): ProductCurrency {
+  return currency ?? "SOL";
+}
+
+export function getProductPriceAmount(p: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceAudd">) {
+  const c = normalizeCurrency(p.currency);
+  if (c === "USDC") return p.priceUsdc ?? 0;
+  if (c === "AUDD") return p.priceAudd ?? 0;
+  return p.priceSol ?? 0;
+}
+
+export function formatTokenAmount(amount: number | null | undefined, currency: ProductCurrency, decimals = 2) {
+  if (amount === null || amount === undefined || !Number.isFinite(amount)) return `-- ${currency}`;
+  const safeAmount = Object.is(amount, -0) ? 0 : amount;
+  return `${formatter(decimals, decimals).format(safeAmount)} ${currency}`;
+}
+
 export function formatProductPrice(p: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceAudd">) {
-  const c = p.currency ?? "SOL";
-  if (c === "USDC") return `${(p.priceUsdc ?? 0).toFixed(2)} USDC`;
-  if (c === "AUDD") return `${(p.priceAudd ?? 0).toFixed(2)} AUDD`;
-  return `${(p.priceSol ?? 0).toFixed(2)} SOL`;
+  const c = normalizeCurrency(p.currency);
+  return formatTokenAmount(getProductPriceAmount(p), c);
 }
 
 export function readFileAsDataUrl(file: File): Promise<string> {

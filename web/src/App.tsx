@@ -20,7 +20,7 @@ import { handleTokenPayment } from "./lib/tokenPayment";
 import { formatProductPrice, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
-import { TOKENS } from "./config/tokens";
+import { TOKENS, syncTokensFromBackend } from "./config/tokens";
 import { DashboardShell } from "./layouts/DashboardShell";
 import { DashboardHomePage } from "./pages/dashboard/DashboardHomePage";
 import { DashboardProductsPage } from "./pages/dashboard/DashboardProductsPage";
@@ -797,6 +797,10 @@ function ProductPage() {
 }
 
 export function App() {
+  useEffect(() => {
+    void syncTokensFromBackend();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />

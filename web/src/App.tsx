@@ -16,9 +16,11 @@ import {
   handlePayment,
   RIVO_FEE_WALLET,
 } from "./lib/payment";
+import { handleTokenPayment } from "./lib/tokenPayment";
 import { formatProductPrice, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
+import { TOKENS } from "./config/tokens";
 import { DashboardShell } from "./layouts/DashboardShell";
 import { DashboardHomePage } from "./pages/dashboard/DashboardHomePage";
 import { DashboardProductsPage } from "./pages/dashboard/DashboardProductsPage";
@@ -550,15 +552,26 @@ function ProductPage() {
     try {
       const buyerWallet = publicKey.toBase58();
       const creatorAddress = product.payoutWallet || product.creatorWallet;
-      setStatus("Preparing split payment...");
+      setStatus("Preparing payment...");
       setStatus("Awaiting wallet approval...");
-      const signature = await handlePayment({
-        connection,
-        wallet: { publicKey, sendTransaction },
-        productPriceSol: product.priceSol,
-        creatorAddress,
-        platformAddress: RIVO_FEE_WALLET,
-      });
+      let signature = "";
+      if ((product.currency ?? "PUSD") === "PUSD") {
+        signature = await handleTokenPayment({
+          connection,
+          wallet: { publicKey, sendTransaction },
+          mintAddress: TOKENS.PUSD.mint,
+          amount: product.price ?? 0,
+          creatorAddress,
+        });
+      } else {
+        signature = await handlePayment({
+          connection,
+          wallet: { publicKey, sendTransaction },
+          productPriceSol: product.priceSol,
+          creatorAddress,
+          platformAddress: RIVO_FEE_WALLET,
+        });
+      }
       setTxSignature(signature);
 
       setStatus("Verifying on-chain payment...");
@@ -566,6 +579,7 @@ function ProductPage() {
         productId: product._id,
         buyerWallet,
         txSignature: signature,
+        currency: product.currency ?? "PUSD",
       });
 
       setStatus("Unlocking content...");
@@ -667,6 +681,11 @@ function ProductPage() {
             </div>
 
             <div className="product-public-actions">
+              {product.currency === "PUSD" ? (
+                <p className="product-public-pay-hint">
+                  You will pay: {formatProductPrice(product)}. Creator receives {formatProductPrice(product)} instantly.
+                </p>
+              ) : null}
               {!accessPayload && (
                 <button className="btn btn-outline" type="button">
                   Add to cart

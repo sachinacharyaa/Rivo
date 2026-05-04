@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { api } from "../../lib/api";
 import { FormatProductDescription, descriptionToHtml } from "../../lib/richDescription";
-import { CRYPTO_OPTIONS, formatProductPrice, readFileAsDataUrl } from "../../lib/productUtils";
+import { formatProductPrice, readFileAsDataUrl } from "../../lib/productUtils";
 import { productPublicUrl } from "../../lib/productUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import type { ProductShape } from "../../types/product";
+import { TOKENS } from "../../config/tokens";
 
 const PRODUCT_TYPES = [
   { id: "digital", title: "Digital product", desc: "Files, templates, presets, or downloads.", emoji: "📦" },
@@ -27,8 +28,6 @@ export function DashboardNewProductPage() {
   const { publicKey } = useWallet();
   const wallet = publicKey?.toBase58() ?? "";
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [currencyOpen, setCurrencyOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -40,30 +39,12 @@ export function DashboardNewProductPage() {
   const [draft, setDraft] = useState({
     name: "",
     productType: "digital",
-    currency: "SOL" as "SOL" | "USDC" | "AUDD",
+    currency: "PUSD" as const,
     priceAmount: "",
     description: "",
     productInfo: "",
     coverUrl: "",
   });
-
-  const selectedCrypto = CRYPTO_OPTIONS.find((c) => c.code === draft.currency) ?? CRYPTO_OPTIONS[0];
-  const renderCurrencyMark = (code: "SOL" | "USDC" | "AUDD", symbol: string, compact = false) => {
-    if (code !== "AUDD") return <span>{symbol}</span>;
-    return (
-      <span className={`dash-currency-icon dash-currency-icon--audd${compact ? " dash-currency-icon--sm" : ""}`} aria-hidden>
-        A$
-      </span>
-    );
-  };
-
-  useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setCurrencyOpen(false);
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, []);
 
   useEffect(() => {
     if (typeof localStorage === "undefined") return;
@@ -99,6 +80,7 @@ export function DashboardNewProductPage() {
     setSubmitting(true);
     setError("");
     const price = Number(draft.priceAmount);
+    const smallestUnitPrice = Math.round(price * 10 ** TOKENS.PUSD.decimals);
     try {
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
@@ -127,10 +109,11 @@ export function DashboardNewProductPage() {
         contentUrl: uploadRes.data.downloadUrl || uploadRes.data.backupUrl,
         coverUrl: draft.coverUrl || undefined,
         thumbnailUrl: draft.coverUrl || undefined,
-        currency: draft.currency,
-        priceSol: draft.currency === "SOL" ? price : 0,
-        priceUsdc: draft.currency === "USDC" ? price : 0,
-        priceAudd: draft.currency === "AUDD" ? price : 0,
+        currency: "PUSD",
+        price: smallestUnitPrice,
+        priceSol: 0,
+        priceUsdc: 0,
+        priceAudd: 0,
         productType: draft.productType,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,
@@ -291,11 +274,12 @@ export function DashboardNewProductPage() {
     return () => document.removeEventListener("selectionchange", onSelection);
   }, [step]);
 
-  const previewProduct: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceAudd"> = {
-    currency: draft.currency,
-    priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
-    priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
-    priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
+  const previewProduct: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceAudd"> = {
+    currency: "PUSD",
+    price: Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals),
+    priceSol: 0,
+    priceUsdc: 0,
+    priceAudd: 0,
   };
 
   return (
@@ -325,8 +309,7 @@ export function DashboardNewProductPage() {
         <div className="gum-new-grid">
           <aside className="gum-new-aside">
             <p className="gum-muted">
-              Need help adding a product? Use a clear title, pick the closest type, and price in SOL or USDC (USDC is display-only until
-              SPL checkout lands).
+              Need help adding a product? Use a clear title, pick the closest type, and set your PUSD price.
             </p>
             <a href="https://github.com/sachinacharyaa/Rivo" className="gum-link" target="_blank" rel="noreferrer">
               View docs
@@ -375,42 +358,10 @@ export function DashboardNewProductPage() {
             </div>
 
             <div className="gum-field">
-              <label className="gum-label">Price</label>
-              <div className="dash-price-bar gum-price-bar" ref={menuRef}>
+              <label className="gum-label">Price (PUSD)</label>
+              <div className="dash-price-bar gum-price-bar">
                 <div className="dash-price-bar__left">
-                  <button
-                    type="button"
-                    className="dash-currency-trigger"
-                    aria-expanded={currencyOpen}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrencyOpen((o) => !o);
-                    }}
-                  >
-                    {renderCurrencyMark(selectedCrypto.code, selectedCrypto.symbol)}
-                    <span className="dash-chevron">▾</span>
-                  </button>
-                  {currencyOpen ? (
-                    <ul className="dash-currency-menu" role="listbox">
-                      {CRYPTO_OPTIONS.map((opt) => (
-                        <li key={opt.code}>
-                          <button
-                            type="button"
-                            className={opt.code === draft.currency ? "dash-currency-menu__item dash-currency-menu__item--active" : "dash-currency-menu__item"}
-                            onClick={() => {
-                              setDraft((d) => ({ ...d, currency: opt.code }));
-                              setCurrencyOpen(false);
-                            }}
-                          >
-                            <span className="dash-currency-menu__content">
-                              {renderCurrencyMark(opt.code, opt.symbol, true)}
-                              <span>{opt.label}</span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+                  <span className="dash-currency-trigger">PUSD</span>
                 </div>
                 <input
                   className="dash-price-bar__input"
@@ -612,7 +563,7 @@ export function DashboardNewProductPage() {
                 </p>
                 {draft.productInfo ? <p className="dash-preview-card__note dash-preview-card__note--inline">{draft.productInfo}</p> : null}
               </div>
-              <p className="dash-preview-card__note">Buyers see this page after they pay with SOL.</p>
+              <p className="dash-preview-card__note">Buyers see this page after they pay with PUSD.</p>
             </div>
           </aside>
         </div>

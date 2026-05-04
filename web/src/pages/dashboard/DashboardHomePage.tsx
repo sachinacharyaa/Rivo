@@ -12,7 +12,7 @@ type PurchaseRow = {
   amount?: number;
   amountSol?: number;
   productId?:
-    | Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceAudd">
+    | Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceAudd">
     | string
     | null;
   createdAt: string;
@@ -30,13 +30,16 @@ function purchaseAmountForCurrency(row: PurchaseRow, currency: ProductCurrency) 
   const rowCurrency = purchaseCurrency(row);
 
   if (product) {
+    if (currency === "PUSD") return rowCurrency === "PUSD" ? (product.price ?? 0) / 1_000_000 : 0;
     if (currency === "USDC") return rowCurrency === "USDC" ? product.priceUsdc ?? 0 : 0;
     if (currency === "AUDD") return rowCurrency === "AUDD" ? product.priceAudd ?? 0 : 0;
-    if (rowCurrency === "USDC" || rowCurrency === "AUDD") return 0;
+    if (rowCurrency === "PUSD" || rowCurrency === "USDC" || rowCurrency === "AUDD") return 0;
     return product.priceSol ?? row.amountSol ?? 0;
   }
 
-  if (row.amount !== undefined && rowCurrency === currency) return row.amount;
+  if (row.amount !== undefined && rowCurrency === currency) {
+    return currency === "PUSD" ? row.amount / 1_000_000 : row.amount;
+  }
   if (currency === "SOL") return row.amountSol ?? 0;
   return 0;
 }
@@ -59,6 +62,20 @@ export function DashboardHomePage() {
   const [activityCurrency, setActivityCurrency] = useState<ProductCurrency>("SOL");
   const [activityCurrencyOpen, setActivityCurrencyOpen] = useState(false);
   const activityMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return;
+    const saved = localStorage.getItem("Rivo_activity_currency");
+    if (!saved) return;
+    if (SUPPORTED_CURRENCIES.includes(saved as ProductCurrency)) {
+      setActivityCurrency(saved as ProductCurrency);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem("Rivo_activity_currency", activityCurrency);
+  }, [activityCurrency]);
 
   useEffect(() => {
     const close = (e: MouseEvent) => {

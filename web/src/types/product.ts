@@ -13,10 +13,11 @@ export type ProductShape = {
   fileName?: string;
   mimeType?: string;
   status?: "draft" | "published";
+  price?: number;
   priceSol: number;
   priceUsdc?: number;
   priceAudd?: number;
-  currency?: "SOL" | "USDC" | "AUDD";
+  currency?: "PUSD" | "SOL" | "USDC" | "AUDD";
   contentUrl: string;
   coverUrl?: string;
   thumbnailUrl?: string;

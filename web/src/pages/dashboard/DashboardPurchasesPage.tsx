@@ -21,14 +21,16 @@ type PurchaseRecord = {
 type CurrencyTotals = Record<ProductCurrency, number>;
 
 function emptyCurrencyTotals(): CurrencyTotals {
-  return { SOL: 0, USDC: 0, AUDD: 0 };
+  return { PUSD: 0, SOL: 0, USDC: 0, AUDD: 0 };
 }
 
 function purchaseCurrency(row: PurchaseRecord): ProductCurrency {
-  return row.currency ?? "SOL";
+  return row.currency ?? "PUSD";
 }
 
 function purchaseAmount(row: PurchaseRecord) {
+  const currency = purchaseCurrency(row);
+  if (currency === "PUSD") return (row.amount ?? 0) / 1_000_000;
   return row.amount ?? row.amountSol ?? 0;
 }
 

@@ -6,7 +6,7 @@ import { z } from "zod";
 import multer from "multer";
 import crypto from "crypto";
 import { create } from "ipfs-http-client";
-import { verifySolTransfer, verifySplTransfer } from "./verifyTransfer.js";
+import { verifySolTransfer, verifySplSplitTransfer } from "./verifyTransfer.js";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -17,7 +17,7 @@ const IPFS_PORT = Number(process.env.IPFS_API_PORT || 5001);
 const IPFS_PROTOCOL = process.env.IPFS_API_PROTOCOL || "http";
 const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/ipfs";
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
-const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "<PUSD_MINT_ADDRESS>";
+const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
@@ -548,13 +548,23 @@ export function createApp() {
       if (PUSD_MINT.startsWith("<")) {
         return res.status(500).json({ message: "PUSD mint is not configured on backend" });
       }
-      const destinationAta = deriveAtaAddress(payoutWallet, PUSD_MINT);
-      check = await verifySplTransfer(
+      const expectedTotal = BigInt(Math.round(product.price));
+      const expectedFee = expectedTotal / 100n; // 1% platform fee
+      const expectedCreator = expectedTotal - expectedFee;
+
+      const buyerAta = deriveAtaAddress(buyerWallet, PUSD_MINT);
+      const creatorAta = deriveAtaAddress(payoutWallet, PUSD_MINT);
+      const platformAta = deriveAtaAddress(RIPPLE_FEE_WALLET, PUSD_MINT);
+
+      check = await verifySplSplitTransfer(
         connection,
         txSignature,
         PUSD_MINT,
-        destinationAta,
-        String(product.price),
+        buyerAta,
+        creatorAta,
+        expectedCreator.toString(),
+        platformAta,
+        expectedFee.toString(),
       );
       if (!check.ok) return res.status(400).json({ message: check.reason || "PUSD verification failed" });
     } else {

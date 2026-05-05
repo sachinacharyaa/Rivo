@@ -102,6 +102,102 @@ export async function verifySplTransfer(connection, signature, mintAddress, dest
   return { ok: true };
 }
 
+/**
+ * Verify a confirmed transaction contains a split SPL-token payment:
+ * buyer ATA -> creator ATA (expectedCreatorAmount)
+ * buyer ATA -> platform ATA (expectedPlatformAmount)
+ */
+export async function verifySplSplitTransfer(
+  connection,
+  signature,
+  mintAddress,
+  buyerAtaAddress,
+  creatorAtaAddress,
+  expectedCreatorAmount,
+  platformAtaAddress,
+  expectedPlatformAmount,
+) {
+  const parsed = await connection.getParsedTransaction(signature, {
+    maxSupportedTransactionVersion: 0,
+    commitment: "confirmed",
+  });
+  if (!parsed) return { ok: false, reason: "Transaction not found" };
+  if (parsed.meta?.err) return { ok: false, reason: "Transaction failed on-chain" };
+
+  const expectedCreator = BigInt(expectedCreatorAmount);
+  const expectedPlatform = BigInt(expectedPlatformAmount);
+
+  const mint = mintAddress;
+  const keys = getAccountKeysForTx({
+    transaction: parsed.transaction,
+    meta: parsed.meta,
+  });
+
+  const findIndex = (ata) => {
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i].toBase58() === ata) return i;
+    }
+    return -1;
+  };
+
+  const creatorIndex = findIndex(creatorAtaAddress);
+  const platformIndex = platformAtaAddress === creatorAtaAddress ? creatorIndex : findIndex(platformAtaAddress);
+  if (creatorIndex < 0 || platformIndex < 0) return { ok: false, reason: "Creator/platform token accounts not part of transaction" };
+
+  const preCreator = tokenBalanceAmountForIndex(parsed.meta?.preTokenBalances, creatorIndex, mint);
+  const postCreator = tokenBalanceAmountForIndex(parsed.meta?.postTokenBalances, creatorIndex, mint);
+  const deltaCreator = postCreator - preCreator;
+
+  if (creatorAtaAddress === platformAtaAddress) {
+    const expectedTotal = expectedCreator + expectedPlatform;
+    if (deltaCreator !== expectedTotal) {
+      return {
+        ok: false,
+        reason: `Token delta mismatch for shared destination. expected=${expectedTotal.toString()} got=${deltaCreator.toString()}`,
+      };
+    }
+
+    const sentTotal = sumSplTransferAmounts(parsed, mint, buyerAtaAddress, creatorAtaAddress);
+    if (sentTotal !== expectedTotal) {
+      return {
+        ok: false,
+        reason: `No matching SPL split transfers. expectedTotal=${expectedTotal.toString()} sentTotal=${sentTotal.toString()}`,
+      };
+    }
+
+    return { ok: true };
+  }
+
+  const prePlatform = tokenBalanceAmountForIndex(parsed.meta?.preTokenBalances, platformIndex, mint);
+  const postPlatform = tokenBalanceAmountForIndex(parsed.meta?.postTokenBalances, platformIndex, mint);
+  const deltaPlatform = postPlatform - prePlatform;
+
+  if (deltaCreator !== expectedCreator || deltaPlatform !== expectedPlatform) {
+    return {
+      ok: false,
+      reason:
+        `SPL split delta mismatch. ` +
+        `expectedCreator=${expectedCreator.toString()} gotCreator=${deltaCreator.toString()}; ` +
+        `expectedPlatform=${expectedPlatform.toString()} gotPlatform=${deltaPlatform.toString()}.`,
+    };
+  }
+
+  const creatorSent = sumSplTransferAmounts(parsed, mint, buyerAtaAddress, creatorAtaAddress);
+  const platformSent = sumSplTransferAmounts(parsed, mint, buyerAtaAddress, platformAtaAddress);
+
+  if (creatorSent !== expectedCreator || platformSent !== expectedPlatform) {
+    return {
+      ok: false,
+      reason:
+        `SPL split instruction mismatch. ` +
+        `expectedCreator=${expectedCreator.toString()} sentCreator=${creatorSent.toString()}; ` +
+        `expectedPlatform=${expectedPlatform.toString()} sentPlatform=${platformSent.toString()}.`,
+    };
+  }
+
+  return { ok: true };
+}
+
 function programIdString(ix) {
   const p = ix.programId;
   if (typeof p === "string") return p;
@@ -246,4 +342,33 @@ function hasSplTransferInstruction(parsedTx, mint, destinationAta, expectedAmoun
   }
 
   return false;
+}
+
+function sumSplTransferAmounts(parsedTx, mint, sourceAta, destinationAta) {
+  const candidates = [];
+  const { message } = parsedTx.transaction;
+  const outer = "instructions" in message ? message.instructions : [];
+  for (const ix of outer) candidates.push(ix);
+  if (parsedTx.meta?.innerInstructions) {
+    for (const group of parsedTx.meta.innerInstructions) {
+      for (const ix of group.instructions) candidates.push(ix);
+    }
+  }
+
+  let total = 0n;
+  for (const ix of candidates) {
+    if (programIdString(ix) !== TOKEN_PROGRAM_ID) continue;
+    const parsed = ix.parsed;
+    if (!parsed || (parsed.type !== "transfer" && parsed.type !== "transferChecked")) continue;
+    const info = parsed.info || {};
+    const src = info.source || "";
+    const dest = info.destination || info.account || "";
+    if (src !== sourceAta || dest !== destinationAta) continue;
+    if (parsed.type === "transferChecked" && info.mint && info.mint !== mint) continue;
+    const amount = info.tokenAmount?.amount || info.amount;
+    if (!amount) continue;
+    total += BigInt(amount);
+  }
+
+  return total;
 }

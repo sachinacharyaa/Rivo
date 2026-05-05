@@ -12,10 +12,6 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { api } from "./lib/api";
 import axios from "axios";
-import {
-  handlePayment,
-  RIVO_FEE_WALLET,
-} from "./lib/payment";
 import { formatProductPrice, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
@@ -30,7 +26,6 @@ import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
 
 type Product = ProductShape;
-type CheckoutPaymentMode = "public" | "private";
 type AccessPayload =
   | { mode: "direct"; contentUrl: string; fileName?: string; mimeType?: string }
   | {
@@ -463,7 +458,7 @@ function ProductsPage() {
 function ProductPage() {
   const { id, slug } = useParams();
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey } = useWallet();
   const wallet = publicKey?.toBase58() ?? "";
   const [product, setProduct] = useState<Product | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -472,7 +467,6 @@ function ProductPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [paymentMode, setPaymentMode] = useState<CheckoutPaymentMode>("public");
   const [shareCopied, setShareCopied] = useState(false);
   const networkLabel = useMemo(() => {
     const endpoint = (connection.rpcEndpoint || "").toLowerCase();
@@ -553,37 +547,28 @@ function ProductPage() {
     try {
       const buyerWallet = publicKey.toBase58();
       const creatorAddress = product.payoutWallet || product.creatorWallet;
-      setStatus("Preparing payment...");
-      setStatus("Awaiting wallet approval...");
-      let signature = "";
-      if ((product.currency ?? "PUSD") === "PUSD") {
-        const { handleTokenPayment } = await import("./lib/tokenPayment");
-        signature = await handleTokenPayment({
-          connection,
-          wallet: { publicKey, sendTransaction },
-          mintAddress: TOKENS.PUSD.mint,
-          amount: product.price ?? 0,
-          creatorAddress,
-          platformAddress: RIVO_FEE_WALLET,
-        });
-      } else {
-        signature = await handlePayment({
-          connection,
-          wallet: { publicKey, sendTransaction },
-          productPriceSol: product.priceSol,
-          creatorAddress,
-          platformAddress: RIVO_FEE_WALLET,
-        });
+      if ((product.currency ?? "PUSD") !== "PUSD") {
+        throw new Error("Umbra private checkout is currently enabled for PUSD products.");
       }
+      setStatus("Preparing Umbra private checkout...");
+      setStatus("Awaiting wallet approval...");
+      const { handleUmbraPrivatePayment } = await import("./lib/umbraPayment");
+      const signature = await handleUmbraPrivatePayment({
+        connection,
+        wallet: { publicKey },
+        recipientAddress: creatorAddress,
+        mintAddress: TOKENS.PUSD.mint,
+        amount: product.price ?? 0,
+      });
       setTxSignature(signature);
 
-      setStatus("Verifying on-chain payment...");
+      setStatus("Verifying Umbra payment...");
       await api.post("/purchases/verify", {
         productId: product._id,
         buyerWallet,
         txSignature: signature,
         currency: product.currency ?? "PUSD",
-        paymentMode,
+        paymentMode: "private",
       });
 
       setStatus("Unlocking content...");
@@ -687,28 +672,11 @@ function ProductPage() {
             <div className="product-public-actions">
               {!accessPayload ? (
                 <div className="product-public-mode">
-                  <div className="product-public-mode__label">Payment mode</div>
+                  <div className="product-public-mode__label">Umbra private checkout enabled</div>
                   <div className="product-public-mode__row">
-                    <label className="product-public-mode__option">
-                      <input
-                        type="radio"
-                        name="payment-mode"
-                        value="public"
-                        checked={paymentMode === "public"}
-                        onChange={() => setPaymentMode("public")}
-                      />
-                      <span>Standard payment (visible)</span>
-                    </label>
-                    <label className="product-public-mode__option">
-                      <input
-                        type="radio"
-                        name="payment-mode"
-                        value="private"
-                        checked={paymentMode === "private"}
-                        onChange={() => setPaymentMode("private")}
-                      />
+                    <div className="product-public-mode__option product-public-mode__option--active">
                       <span>Private payment (Umbra)</span>
-                    </label>
+                    </div>
                   </div>
                 </div>
               ) : null}

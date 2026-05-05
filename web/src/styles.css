@@ -1872,7 +1872,7 @@ textarea {
 
 .product-public-mode__row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -1892,6 +1892,12 @@ textarea {
 
 .product-public-mode__option input {
   accent-color: var(--purple);
+}
+
+.product-public-mode__option--active {
+  border-color: rgba(122, 46, 232, 0.45);
+  background: rgba(153, 69, 255, 0.12);
+  color: #2a0d57;
 }
 
 .product-public-mode .gum-search-input {

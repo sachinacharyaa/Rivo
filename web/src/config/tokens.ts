@@ -7,7 +7,7 @@ type RuntimeTokens = {
 export const TOKENS: RuntimeTokens = {
   PUSD: {
     symbol: "PUSD",
-    mint: import.meta.env.VITE_PUSD_MINT_ADDRESS || "<PUSD_MINT_ADDRESS>",
+    mint: import.meta.env.VITE_PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY",
     decimals: 6,
     isDefault: true,
   },

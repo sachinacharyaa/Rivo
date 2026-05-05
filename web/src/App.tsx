@@ -16,7 +16,7 @@ import {
   handlePayment,
   RIVO_FEE_WALLET,
 } from "./lib/payment";
-import { formatProductPrice, productPublicPath } from "./lib/productUtils";
+import { formatProductPrice, formatTokenAmount, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
 import { TOKENS, syncTokensFromBackend } from "./config/tokens";
@@ -522,6 +522,14 @@ function ProductPage() {
     }
   }, [product, wallet]);
 
+  const formatPusdCreatorReceives = (priceSmallestUnits: number) => {
+    const total = Math.max(0, priceSmallestUnits);
+    const fee = Math.floor(total / 100); // 1% platform fee
+    const creator = total - fee;
+    const decimals = TOKENS.PUSD.decimals;
+    return formatTokenAmount(creator / 10 ** decimals, "PUSD", 2);
+  };
+
   const buy = async () => {
     if (!product) return;
     setError("");
@@ -562,6 +570,7 @@ function ProductPage() {
           mintAddress: TOKENS.PUSD.mint,
           amount: product.price ?? 0,
           creatorAddress,
+          platformAddress: RIVO_FEE_WALLET,
         });
       } else {
         signature = await handlePayment({
@@ -683,7 +692,7 @@ function ProductPage() {
             <div className="product-public-actions">
               {product.currency === "PUSD" ? (
                 <p className="product-public-pay-hint">
-                  You will pay: {formatProductPrice(product)}. Creator receives {formatProductPrice(product)} instantly.
+                  You will pay: {formatProductPrice(product)}. Creator receives {formatPusdCreatorReceives(product.price ?? 0)} instantly.
                 </p>
               ) : null}
               {!accessPayload && (

@@ -16,7 +16,7 @@ import {
   handlePayment,
   RIVO_FEE_WALLET,
 } from "./lib/payment";
-import { formatProductPrice, formatTokenAmount, productPublicPath } from "./lib/productUtils";
+import { formatProductPrice, productPublicPath } from "./lib/productUtils";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
 import { TOKENS, syncTokensFromBackend } from "./config/tokens";
@@ -30,6 +30,7 @@ import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
 
 type Product = ProductShape;
+type CheckoutPaymentMode = "public" | "private";
 type AccessPayload =
   | { mode: "direct"; contentUrl: string; fileName?: string; mimeType?: string }
   | {
@@ -471,6 +472,7 @@ function ProductPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [paymentMode, setPaymentMode] = useState<CheckoutPaymentMode>("public");
   const [shareCopied, setShareCopied] = useState(false);
   const networkLabel = useMemo(() => {
     const endpoint = (connection.rpcEndpoint || "").toLowerCase();
@@ -521,14 +523,6 @@ function ProductPage() {
       return "";
     }
   }, [product, wallet]);
-
-  const formatPusdCreatorReceives = (priceSmallestUnits: number) => {
-    const total = Math.max(0, priceSmallestUnits);
-    const fee = Math.floor(total / 100); // 1% platform fee
-    const creator = total - fee;
-    const decimals = TOKENS.PUSD.decimals;
-    return formatTokenAmount(creator / 10 ** decimals, "PUSD", 2);
-  };
 
   const buy = async () => {
     if (!product) return;
@@ -589,6 +583,7 @@ function ProductPage() {
         buyerWallet,
         txSignature: signature,
         currency: product.currency ?? "PUSD",
+        paymentMode,
       });
 
       setStatus("Unlocking content...");
@@ -690,10 +685,32 @@ function ProductPage() {
             </div>
 
             <div className="product-public-actions">
-              {product.currency === "PUSD" ? (
-                <p className="product-public-pay-hint">
-                  You will pay: {formatProductPrice(product)}. Creator receives {formatPusdCreatorReceives(product.price ?? 0)} instantly.
-                </p>
+              {!accessPayload ? (
+                <div className="product-public-mode">
+                  <div className="product-public-mode__label">Payment mode</div>
+                  <div className="product-public-mode__row">
+                    <label className="product-public-mode__option">
+                      <input
+                        type="radio"
+                        name="payment-mode"
+                        value="public"
+                        checked={paymentMode === "public"}
+                        onChange={() => setPaymentMode("public")}
+                      />
+                      <span>Standard payment (visible)</span>
+                    </label>
+                    <label className="product-public-mode__option">
+                      <input
+                        type="radio"
+                        name="payment-mode"
+                        value="private"
+                        checked={paymentMode === "private"}
+                        onChange={() => setPaymentMode("private")}
+                      />
+                      <span>Private payment (Umbra)</span>
+                    </label>
+                  </div>
+                </div>
               ) : null}
               {!accessPayload && (
                 <button className="btn btn-outline" type="button">

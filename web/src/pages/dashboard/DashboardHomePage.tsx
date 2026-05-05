@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { api } from "../../lib/api";
 import { formatTokenAmount, SUPPORTED_CURRENCIES, type ProductCurrency } from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
+import { TOKENS } from "../../config/tokens";
 
 type PurchaseRow = {
   _id: string;
@@ -56,6 +58,7 @@ export function DashboardHomePage() {
   const { connection } = useConnection();
   const wallet = publicKey?.toBase58() ?? "";
   const [balanceSol, setBalanceSol] = useState<number | null>(null);
+  const [balancePusd, setBalancePusd] = useState<number | null>(null);
   const [products, setProducts] = useState<ProductShape[]>([]);
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [buyerPurchaseCount, setBuyerPurchaseCount] = useState(0);
@@ -86,6 +89,44 @@ export function DashboardHomePage() {
   useEffect(() => {
     if (!publicKey) return;
     connection.getBalance(publicKey).then((l) => setBalanceSol(l / LAMPORTS_PER_SOL));
+  }, [connection, publicKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!publicKey) {
+      setBalancePusd(null);
+      return;
+    }
+
+    const loadPusdBalance = async () => {
+      try {
+        let mintAddress = TOKENS.PUSD.mint;
+        try {
+          const tokenRes = await api.get<{ PUSD?: { mint?: string } }>("/tokens");
+          const apiMint = tokenRes.data?.PUSD?.mint?.trim();
+          if (apiMint) mintAddress = apiMint;
+        } catch {
+          // Fallback to frontend-configured token if token metadata endpoint is unavailable.
+        }
+
+        const mint = new PublicKey(mintAddress);
+        const ata = await getAssociatedTokenAddress(mint, publicKey);
+        const ataInfo = await connection.getParsedAccountInfo(ata, "confirmed");
+        if (cancelled) return;
+        const amountRaw =
+          ((ataInfo.value?.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } } | undefined)
+            ?.parsed?.info?.tokenAmount?.amount as string | undefined) || "0";
+        const amount = Number(amountRaw) / 10 ** TOKENS.PUSD.decimals;
+        setBalancePusd(Number.isFinite(amount) ? amount : 0);
+      } catch {
+        if (!cancelled) setBalancePusd(0);
+      }
+    };
+
+    void loadPusdBalance();
+    return () => {
+      cancelled = true;
+    };
   }, [connection, publicKey]);
 
   useEffect(() => {
@@ -191,7 +232,11 @@ export function DashboardHomePage() {
                 ? balanceSol !== null
                   ? formatTokenAmount(balanceSol, "SOL", 4)
                   : "--"
-                : `-- ${activityCurrency}`}
+                : activityCurrency === "PUSD"
+                  ? balancePusd !== null
+                    ? formatTokenAmount(balancePusd, "PUSD", 2)
+                    : "--"
+                  : `-- ${activityCurrency}`}
             </div>
           </div>
           <div className="gum-metric-card">

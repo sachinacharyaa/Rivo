@@ -57,6 +57,7 @@ The current MVP is a Solana-native creator commerce app. A creator connects a wa
 
 | Currency | Listing UI | On-chain checkout | Notes |
 | --- | --- | --- | --- |
+| PUSD | Yes | Yes | SPL token checkout path |
 | SOL | Yes | Yes | Current production checkout path |
 | USDC | Yes | No | Display/listing support only |
 | AUDD | Yes | No | Display/listing support only |
@@ -81,16 +82,16 @@ programs/ripple/
 
 ### Payment Verification
 
-The frontend creates one SOL transaction with two transfers:
+The frontend creates one payment transaction with two splits:
 
-- buyer -> creator payout wallet
-- buyer -> Rivo platform fee wallet
+- SOL listings (native lamports): buyer -> creator payout wallet, buyer -> Rivo platform fee wallet
+- PUSD listings (SPL token): buyer -> creator payout ATA, buyer -> Rivo platform fee wallet ATA
 
 The backend fetches the confirmed transaction from Solana RPC and verifies:
 
 - the transaction exists and did not fail
 - the buyer wallet matches
-- the creator payout wallet received the expected lamports
+- the creator payout received the expected amount
 - the platform wallet received the expected 1% fee
 - the transaction signature has not already been used for another purchase
 
@@ -140,6 +141,7 @@ MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=ma
 SOLANA_RPC=https://api.devnet.solana.com
 CORS_ORIGINS=http://localhost:5173
 RIPPLE_FEE_WALLET=G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw
+PUSD_MINT_ADDRESS=6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY
 IPFS_API_HOST=127.0.0.1
 IPFS_API_PORT=5001
 IPFS_API_PROTOCOL=http
@@ -246,6 +248,7 @@ MONGODB_URI=
 SOLANA_RPC=https://api.devnet.solana.com
 CORS_ORIGINS=https://your-domain.vercel.app
 RIPPLE_FEE_WALLET=
+PUSD_MINT_ADDRESS=
 IPFS_API_HOST=
 IPFS_API_PORT=
 IPFS_API_PROTOCOL=
@@ -263,7 +266,7 @@ Post-deploy checks:
 2. Wallet connects on the frontend.
 3. Creator can create and publish a product.
 4. Public product page loads by slug.
-5. Buyer can complete SOL checkout.
+5. Buyer can complete PUSD checkout (devnet).
 6. Backend verifies the transaction.
 7. Buyer unlocks the product.
 8. Creator and buyer history pages show the purchase.

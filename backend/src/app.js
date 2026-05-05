@@ -7,6 +7,7 @@ import multer from "multer";
 import crypto from "crypto";
 import { create } from "ipfs-http-client";
 import { verifySolTransfer, verifySplSplitTransfer } from "./verifyTransfer.js";
+import { verifyUmbraPrivatePayment } from "./umbraService.js";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -19,6 +20,7 @@ const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
+const UMBRA_VIEWING_KEY = process.env.UMBRA_VIEWING_KEY || "demo-viewing-key-rivo";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
@@ -79,6 +81,7 @@ const purchaseSchema = new mongoose.Schema(
     productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
     buyerWallet: { type: String, required: true, index: true },
     txSignature: { type: String, required: true, unique: true },
+    paymentMode: { type: String, enum: ["public", "private"], default: "public" },
     currency: { type: String, enum: ["PUSD", "SOL", "USDC", "AUDD"], default: "PUSD" },
     amount: { type: Number, required: true },
     amountSol: { type: Number, default: 0 },
@@ -508,10 +511,11 @@ export function createApp() {
   });
 
   app.post("/api/purchases/verify", async (req, res) => {
-    const { productId, buyerWallet, txSignature, currency } = req.body;
+    const { productId, buyerWallet, txSignature, currency, paymentMode } = req.body;
     if (!productId || !buyerWallet || !txSignature) {
       return res.status(400).json({ message: "productId, buyerWallet, and txSignature are required" });
     }
+    const checkoutMode = paymentMode === "private" ? "private" : "public";
 
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
@@ -580,11 +584,27 @@ export function createApp() {
       if (!check.ok) return res.status(400).json({ message: check.reason || "Verification failed" });
     }
 
+    if (checkoutMode === "private") {
+      const privateCheck = await verifyUmbraPrivatePayment({
+        signature: txSignature,
+        buyerWallet,
+        viewingKey: UMBRA_VIEWING_KEY,
+        expectedAmount:
+          checkoutCurrency === "PUSD"
+            ? String(product.price ?? 0)
+            : creatorLamports.toString(),
+      });
+      if (!privateCheck.ok) {
+        return res.status(400).json({ message: privateCheck.reason || "Private payment verification failed" });
+      }
+    }
+
     try {
       await Purchase.create({
         productId,
         buyerWallet,
         txSignature,
+        paymentMode: checkoutMode,
         currency: checkoutCurrency,
         amount: checkoutCurrency === "PUSD" ? product.price : product.priceSol,
         amountSol: checkoutCurrency === "SOL" ? product.priceSol : 0,
@@ -597,7 +617,7 @@ export function createApp() {
 
     product.salesCount += 1;
     await product.save();
-    return res.json({ ok: true });
+    return res.json({ ok: true, paymentMode: checkoutMode });
   });
 
   app.post("/api/digital-products/upload", upload.array("files", 10), async (req, res) => {

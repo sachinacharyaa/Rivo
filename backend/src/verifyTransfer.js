@@ -246,10 +246,29 @@ function verifyTransfersFromParsed(candidates, buyer, creator, platform, wantCre
 
 function getAccountKeysForTx(tx) {
   const msg = tx.transaction.message;
-  if (msg.version === "legacy") {
-    return msg.accountKeys.map((k) => (k instanceof PublicKey ? k : new PublicKey(k)));
+
+  const toPublicKey = (key) => {
+    if (key instanceof PublicKey) return key;
+    if (typeof key === "string") return new PublicKey(key);
+    if (key && typeof key.toBase58 === "function") return new PublicKey(key.toBase58());
+    if (key && typeof key.pubkey === "string") return new PublicKey(key.pubkey);
+    if (key && key.pubkey && typeof key.pubkey.toBase58 === "function") return new PublicKey(key.pubkey.toBase58());
+    return null;
+  };
+
+  // Legacy/parsing responses may expose only `accountKeys` (sometimes as objects with `pubkey`).
+  if (Array.isArray(msg.accountKeys) && msg.accountKeys.length > 0) {
+    return msg.accountKeys
+      .map(toPublicKey)
+      .filter((k) => k instanceof PublicKey);
   }
-  const out = [...msg.staticAccountKeys];
+
+  // Versioned responses expose `staticAccountKeys` + loaded addresses.
+  const out = Array.isArray(msg.staticAccountKeys)
+    ? msg.staticAccountKeys
+        .map(toPublicKey)
+        .filter((k) => k instanceof PublicKey)
+    : [];
   const loaded = tx.meta?.loadedAddresses;
   if (loaded?.writable?.length) {
     for (const w of loaded.writable) out.push(new PublicKey(w));

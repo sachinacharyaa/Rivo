@@ -1,21 +1,20 @@
 # Rivo
 
-Rivo is a Solana-native checkout and access layer for creators selling digital products.
+Creators today lose revenue because platforms take 10–20% on their generated income, delay payouts and face global restrictions. Even getting started is difficult—creators often need tools like Stripe or similar payment processors which can be unavailable in many countries, require complex setup and still charge high fees. This creates significant friction before a creator even makes their first sale.
 
-Creators can publish a product, set a payout wallet, accept wallet payments, and give buyers access only after an on-chain payment is verified. The current MVP supports SOL checkout end-to-end with a 1% platform fee split. USDC and AUDD can be selected for listing/pricing UX, but on-chain checkout for those currencies is not enabled yet.
+Most existing Web3 marketplaces are not designed for true digital product commerce. They primarily focus on NFTs, art and token-gated access only which require multiple steps and fragmented tools.
 
-## Why Rivo
+As a result, Creators still lack a seamless way to sell digital products where they can get paid instantly and buyers unlock access immediately which is all in one experience and Rivo is built to solve exactly this gap.
 
-Web2 creator platforms usually depend on payment processors like Stripe, which are not available everywhere and add operational friction before a creator can sell. Even after setup, platforms often take a large cut and delay payouts.
+Rivo uses Solana to remove these barriers which enabling creators to sell real digital products with low fees, instant payouts and permissionless access.
 
-Rivo uses Solana for the parts where crypto is genuinely useful:
+Buyers pay with their wallet and unlock products instantly—no intermediaries, no delays.
 
-- wallet-native creator onboarding
-- low-fee payments
-- instant settlement to the creator payout wallet
-- verifiable buyer payment history
-- instant digital product unlock after payment
-- encrypted file delivery through IPFS metadata gated by backend access checks
+Rivo unlocks the true potential of digital commerce by enabling creators to list real, reusable digital products items that can be sold to unlimited buyers such as SaaS and software licenses, courses and premium guides, developer assets like templates and UI kits and creator packs including design, media and content. It focuses on practical value, allowing users to reinvest their earnings such as rewards from communities like Superteam into tools, knowledge and resources that genuinely improve their skills, productivity and everyday life.
+
+At the same time, Rivo supports exclusive also 1:1 digital ownership through NFTs, enabling creators to offer high-value, limited-access products such as premium software licenses, proprietary AI models or private algorithms, and research or alpha signals. This dual approach combining scalable digital products with verifiable exclusive ownership ensures that creators can monetize across different value tiers while buyers gain both accessible resources and unique, high value digital assets within a single seamless ecosystem.
+
+The current MVP is a Solana-native creator commerce app. A creator connects a wallet, creates a product, sets pricing and payout wallet details and publishes a buyer-facing product page. A buyer connects a wallet, pays on Solana and the backend verifies the transaction before unlocking the purchased file or link. The app already supports product metadata, creator dashboards, buyer purchase history, sales history, split payment logic with a 1% platform fee, backend verification of confirmed Solana transfers and encrypted IPFS delivery for uploaded files.
 
 ## Current Product Flow
 

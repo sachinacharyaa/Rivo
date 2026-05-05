@@ -147,10 +147,12 @@ export async function verifySplSplitTransfer(
   const preCreator = tokenBalanceAmountForIndex(parsed.meta?.preTokenBalances, creatorIndex, mint);
   const postCreator = tokenBalanceAmountForIndex(parsed.meta?.postTokenBalances, creatorIndex, mint);
   const deltaCreator = postCreator - preCreator;
+  const creatorIsBuyerSource = creatorAtaAddress === buyerAtaAddress;
+  const platformIsBuyerSource = platformAtaAddress === buyerAtaAddress;
 
   if (creatorAtaAddress === platformAtaAddress) {
     const expectedTotal = expectedCreator + expectedPlatform;
-    if (deltaCreator !== expectedTotal) {
+    if (!creatorIsBuyerSource && deltaCreator !== expectedTotal) {
       return {
         ok: false,
         reason: `Token delta mismatch for shared destination. expected=${expectedTotal.toString()} got=${deltaCreator.toString()}`,
@@ -172,7 +174,10 @@ export async function verifySplSplitTransfer(
   const postPlatform = tokenBalanceAmountForIndex(parsed.meta?.postTokenBalances, platformIndex, mint);
   const deltaPlatform = postPlatform - prePlatform;
 
-  if (deltaCreator !== expectedCreator || deltaPlatform !== expectedPlatform) {
+  const creatorDeltaOk = creatorIsBuyerSource ? true : deltaCreator === expectedCreator;
+  const platformDeltaOk = platformIsBuyerSource ? true : deltaPlatform === expectedPlatform;
+
+  if (!creatorDeltaOk || !platformDeltaOk) {
     return {
       ok: false,
       reason:

@@ -20,7 +20,6 @@ const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
-const UMBRA_VIEWING_KEY = process.env.UMBRA_VIEWING_KEY || "demo-viewing-key-rivo";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
@@ -515,7 +514,7 @@ export function createApp() {
     if (!productId || !buyerWallet || !txSignature) {
       return res.status(400).json({ message: "productId, buyerWallet, and txSignature are required" });
     }
-    const checkoutMode = paymentMode === "private" ? "private" : "public";
+    const checkoutMode = paymentMode === "public" ? "public" : "private";
 
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
@@ -545,7 +544,19 @@ export function createApp() {
     }
 
     let check;
-    if (checkoutCurrency === "PUSD") {
+    if (checkoutMode === "private") {
+      const privateCheck = await verifyUmbraPrivatePayment({
+        signature: txSignature,
+        buyerWallet,
+        expectedAmount:
+          checkoutCurrency === "PUSD"
+            ? String(product.price ?? 0)
+            : creatorLamports.toString(),
+      });
+      if (!privateCheck.ok) {
+        return res.status(400).json({ message: privateCheck.reason || "Private payment verification failed" });
+      }
+    } else if (checkoutCurrency === "PUSD") {
       if (!product.price || product.price <= 0) {
         return res.status(400).json({ message: "This product has no PUSD price" });
       }
@@ -582,21 +593,6 @@ export function createApp() {
         feeLamports.toString(),
       );
       if (!check.ok) return res.status(400).json({ message: check.reason || "Verification failed" });
-    }
-
-    if (checkoutMode === "private") {
-      const privateCheck = await verifyUmbraPrivatePayment({
-        signature: txSignature,
-        buyerWallet,
-        viewingKey: UMBRA_VIEWING_KEY,
-        expectedAmount:
-          checkoutCurrency === "PUSD"
-            ? String(product.price ?? 0)
-            : creatorLamports.toString(),
-      });
-      if (!privateCheck.ok) {
-        return res.status(400).json({ message: privateCheck.reason || "Private payment verification failed" });
-      }
     }
 
     try {

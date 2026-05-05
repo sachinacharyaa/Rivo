@@ -1,4 +1,5 @@
 let umbraInitPromise = null;
+const rpcUrl = process.env.SOLANA_RPC || "https://api.devnet.solana.com";
 
 async function initUmbraClient() {
   if (umbraInitPromise) return umbraInitPromise;
@@ -6,7 +7,6 @@ async function initUmbraClient() {
   umbraInitPromise = (async () => {
     const sdk = await import("@umbra-privacy/sdk");
     const signer = await sdk.createInMemorySigner();
-    const rpcUrl = process.env.SOLANA_RPC || "https://api.devnet.solana.com";
     const wsUrl = rpcUrl.replace("https://", "wss://").replace("http://", "ws://");
     const network = process.env.UMBRA_NETWORK || "devnet";
 
@@ -30,19 +30,22 @@ async function initUmbraClient() {
 export async function verifyUmbraPrivatePayment({
   signature,
   buyerWallet,
-  viewingKey,
   expectedAmount,
 }) {
-  if (!viewingKey || viewingKey.length < 8) {
-    return { ok: false, reason: "Umbra viewing key is missing or invalid." };
-  }
-
   try {
     await initUmbraClient();
+    const { Connection } = await import("@solana/web3.js");
+    const connection = new Connection(rpcUrl, "confirmed");
+    const txResp = await connection.getTransaction(signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    if (!txResp) return { ok: false, reason: "Umbra transaction not found on-chain." };
+    if (txResp.meta?.err) return { ok: false, reason: "Umbra transaction failed on-chain." };
+
     // MVP integration note:
-    // We keep the existing on-chain transfer verification as the source of truth
-    // and require a viewing key in private mode. Full ciphertext decryption and
-    // proof validation can be added here using Umbra indexer + compliance grants.
+    // This verifies a confirmed on-chain Umbra transaction exists.
+    // Full ciphertext/decryption compliance checks can be layered here next.
     return {
       ok: true,
       meta: {

@@ -559,13 +559,22 @@ function ProductPage() {
     try {
       const buyerWallet = publicKey.toBase58();
       const creatorAddress = product.payoutWallet || product.creatorWallet;
+      if (!product.umbraReady) {
+        throw new Error(
+          "Creator Umbra payout is not ready for this product yet. Ask creator to re-publish after Umbra setup.",
+        );
+      }
       const payment = getUmbraMintAndAmount(product);
       if (!Number.isFinite(payment.amount) || payment.amount <= 0) {
         throw new Error(`Invalid ${payment.currency} price for this product.`);
       }
       setStatus("Preparing Umbra private checkout...");
       setStatus("Awaiting wallet approval...");
-      const { handleUmbraPrivatePayment } = await import("./lib/umbraPayment");
+      const { ensureUmbraPrivatePayoutReady, handleUmbraPrivatePayment } = await import("./lib/umbraPayment");
+      await ensureUmbraPrivatePayoutReady({
+        connection,
+        wallet: { publicKey },
+      });
       const signature = await handleUmbraPrivatePayment({
         connection,
         wallet: { publicKey },

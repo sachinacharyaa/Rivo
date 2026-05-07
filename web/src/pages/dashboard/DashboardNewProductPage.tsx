@@ -85,7 +85,7 @@ export function DashboardNewProductPage() {
     const smallestUnitPrice =
       draft.currency === "PUSD" ? Math.round(price * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
-      // Auto-enable creator Umbra payout readiness on publish.
+      // Strict readiness gate: require creator Umbra setup before publish.
       const { ensureUmbraPrivatePayoutReady } = await import("../../lib/umbraPayment");
       await ensureUmbraPrivatePayoutReady({
         connection,
@@ -125,6 +125,7 @@ export function DashboardNewProductPage() {
         priceUsdc: draft.currency === "USDC" ? price : 0,
         priceAudd: draft.currency === "AUDD" ? price : 0,
         productType: draft.productType,
+        umbraReady: true,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,
         status: "draft",
@@ -146,7 +147,7 @@ export function DashboardNewProductPage() {
           setError(data?.message || "Could not publish. Check fields and try again.");
         }
       } else {
-        setError("Could not publish. Check fields and try again.");
+        setError(err instanceof Error ? err.message : "Could not publish. Check fields and try again.");
       }
     } finally {
       setSubmitting(false);

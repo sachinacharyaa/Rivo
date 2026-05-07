@@ -3449,3 +3449,38 @@ textarea {
   color: var(--white);
   text-decoration: underline;
 }
+
+.gum-analytics-skeletons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.gum-analytics-table {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.gum-analytics-table__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gum-analytics-table__row:last-child {
+  border-bottom: none;
+}
+
+.gum-analytics-table__path {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.gum-analytics-table__meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}

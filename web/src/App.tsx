@@ -24,6 +24,7 @@ import { DashboardEditProductPage } from "./pages/dashboard/DashboardEditProduct
 import { DashboardPaymentPage } from "./pages/dashboard/DashboardPaymentPage";
 import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
+import { DashboardAnalyticsPage } from "./pages/dashboard/DashboardAnalyticsPage";
 
 type Product = ProductShape;
 type AccessPayload =
@@ -790,27 +791,49 @@ function ProductPage() {
   );
 }
 
+function RouteAnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const pathWithQuery = `${location.pathname}${location.search}`;
+    const dedupeKey = `Rivo_analytics_seen_${pathWithQuery}`;
+    if (sessionStorage.getItem(dedupeKey)) return;
+    sessionStorage.setItem(dedupeKey, "1");
+
+    void api.post("/analytics/track", {
+      path: location.pathname,
+      referrer: document.referrer || "",
+    });
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
 export function App() {
   useEffect(() => {
     void syncTokensFromBackend();
   }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/products" element={<ProductsPage />} />
-      <Route path="/dashboard" element={<DashboardShell />}>
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<DashboardHomePage />} />
-        <Route path="products" element={<DashboardProductsPage />} />
-        <Route path="products/new" element={<DashboardNewProductPage />} />
-        <Route path="products/:id/edit" element={<DashboardEditProductPage />} />
-        <Route path="payment" element={<DashboardPaymentPage />} />
-        <Route path="purchases" element={<DashboardPurchasesPage />} />
-        <Route path="discover" element={<DashboardDiscoverPage />} />
-      </Route>
-      <Route path="/p/:id" element={<ProductPage />} />
-      <Route path="/:slug" element={<ProductPage />} />
-    </Routes>
+    <>
+      <RouteAnalyticsTracker />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/dashboard" element={<DashboardShell />}>
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<DashboardHomePage />} />
+          <Route path="products" element={<DashboardProductsPage />} />
+          <Route path="products/new" element={<DashboardNewProductPage />} />
+          <Route path="products/:id/edit" element={<DashboardEditProductPage />} />
+          <Route path="payment" element={<DashboardPaymentPage />} />
+          <Route path="purchases" element={<DashboardPurchasesPage />} />
+          <Route path="discover" element={<DashboardDiscoverPage />} />
+          <Route path="analytics" element={<DashboardAnalyticsPage />} />
+        </Route>
+        <Route path="/p/:id" element={<ProductPage />} />
+        <Route path="/:slug" element={<ProductPage />} />
+      </Routes>
+    </>
   );
 }

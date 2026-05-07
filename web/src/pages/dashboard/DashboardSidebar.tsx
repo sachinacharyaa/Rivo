@@ -67,6 +67,12 @@ export function DashboardSidebar() {
           </span>
           Discover
         </NavLink>
+        <NavLink to="/dashboard/analytics" className={linkClass}>
+          <span className="gum-nav__ico" aria-hidden>
+            #
+          </span>
+          Analytics
+        </NavLink>
       </nav>
     </aside>
   );

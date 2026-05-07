@@ -20,6 +20,7 @@ const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
+const AUDD_MINT = process.env.AUDD_MINT_ADDRESS || "<AUDD_MINT_ADDRESS>";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
@@ -427,6 +428,7 @@ export function createApp() {
     return res.json({
       PUSD: { symbol: "PUSD", mint: PUSD_MINT, decimals: 6, isDefault: true },
       USDC: { symbol: "USDC", mint: USDC_MINT, decimals: 6 },
+      AUDD: { symbol: "AUDD", mint: AUDD_MINT, decimals: 6 },
       SOL: { symbol: "SOL", type: "native" },
     });
   });
@@ -622,11 +624,17 @@ export function createApp() {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
     const checkoutCurrency = currency || product.currency || "PUSD";
-    if (checkoutCurrency === "USDC") {
-      return res.status(400).json({ message: "USDC checkout is not enabled yet — list in USDC but buyers pay in SOL once you switch currency to SOL." });
+    if (checkoutCurrency === "PUSD" && (!product.price || product.price <= 0)) {
+      return res.status(400).json({ message: "This product has no PUSD price" });
     }
-    if (checkoutCurrency !== "PUSD" && product.priceSol <= 0) {
+    if (checkoutCurrency === "SOL" && product.priceSol <= 0) {
       return res.status(400).json({ message: "This product has no SOL price" });
+    }
+    if (checkoutCurrency === "USDC" && (product.priceUsdc ?? 0) <= 0) {
+      return res.status(400).json({ message: "This product has no USDC price" });
+    }
+    if (checkoutCurrency === "AUDD" && (product.priceAudd ?? 0) <= 0) {
+      return res.status(400).json({ message: "This product has no AUDD price" });
     }
 
     // Convert SOL -> lamports deterministically (client uses the same 9-decimal approach).
@@ -635,6 +643,14 @@ export function createApp() {
     const expectedLamports = BigInt(wholePart) * BigInt(LAMPORTS_PER_SOL) + BigInt(fracPart.padEnd(9, "0").slice(0, 9));
     const feeLamports = expectedLamports / 100n; // 1% platform fee
     const creatorLamports = expectedLamports - feeLamports;
+    const expectedPrivateAmount =
+      checkoutCurrency === "PUSD"
+        ? BigInt(Math.round(product.price ?? 0))
+        : checkoutCurrency === "USDC"
+          ? BigInt(Math.round((product.priceUsdc ?? 0) * 1_000_000))
+          : checkoutCurrency === "AUDD"
+            ? BigInt(Math.round((product.priceAudd ?? 0) * 1_000_000))
+            : expectedLamports;
     const payoutWallet = product.payoutWallet || product.creatorWallet;
 
     const existing = await Purchase.findOne({ txSignature });
@@ -651,10 +667,7 @@ export function createApp() {
       const privateCheck = await verifyUmbraPrivatePayment({
         signature: txSignature,
         buyerWallet,
-        expectedAmount:
-          checkoutCurrency === "PUSD"
-            ? String(product.price ?? 0)
-            : creatorLamports.toString(),
+        expectedAmount: expectedPrivateAmount.toString(),
       });
       if (!privateCheck.ok) {
         return res.status(400).json({ message: privateCheck.reason || "Private payment verification failed" });
@@ -705,7 +718,14 @@ export function createApp() {
         txSignature,
         paymentMode: checkoutMode,
         currency: checkoutCurrency,
-        amount: checkoutCurrency === "PUSD" ? product.price : product.priceSol,
+        amount:
+          checkoutCurrency === "PUSD"
+            ? product.price
+            : checkoutCurrency === "USDC"
+              ? product.priceUsdc
+              : checkoutCurrency === "AUDD"
+                ? product.priceAudd
+                : product.priceSol,
         amountSol: checkoutCurrency === "SOL" ? product.priceSol : 0,
         status: "confirmed",
       });

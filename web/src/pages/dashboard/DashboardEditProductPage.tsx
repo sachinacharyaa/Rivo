@@ -3,7 +3,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
 import { api } from "../../lib/api";
-import { formatProductPrice, readFileAsDataUrl } from "../../lib/productUtils";
+import {
+  CRYPTO_OPTIONS,
+  formatProductPrice,
+  readFileAsDataUrl,
+  type ProductCurrency,
+} from "../../lib/productUtils";
 import { FormatProductDescription } from "../../lib/richDescription";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
@@ -25,7 +30,7 @@ export function DashboardEditProductPage() {
     name: "",
     description: "",
     productInfo: "",
-    currency: "PUSD" as const,
+    currency: "PUSD" as ProductCurrency,
     priceAmount: "",
     coverUrl: "",
   });
@@ -42,7 +47,7 @@ export function DashboardEditProductPage() {
           name: p.title || "",
           description: p.description || "",
           productInfo: p.productInfo || "",
-          currency: "PUSD",
+          currency: (p.currency || "PUSD") as ProductCurrency,
           priceAmount: String(
             p.currency === "PUSD"
               ? (p.price ?? 0) / 10 ** TOKENS.PUSD.decimals
@@ -64,13 +69,16 @@ export function DashboardEditProductPage() {
 
   const previewProduct = useMemo(
     () => ({
-      currency: "PUSD" as const,
-      price: Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals),
-      priceSol: 0,
-      priceUsdc: 0,
-      priceAudd: 0,
+      currency: draft.currency,
+      price:
+        draft.currency === "PUSD"
+          ? Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals)
+          : 0,
+      priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
+      priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
+      priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
     }),
-    [draft.priceAmount],
+    [draft.currency, draft.priceAmount],
   );
 
   const save = async (e: FormEvent) => {
@@ -96,7 +104,8 @@ export function DashboardEditProductPage() {
     setError("");
     setNotice("");
     const amount = Number(draft.priceAmount);
-    const amountInSmallest = Math.round(amount * 10 ** TOKENS.PUSD.decimals);
+    const amountInSmallest =
+      draft.currency === "PUSD" ? Math.round(amount * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
       await api.put(`/products/${id}`, {
         creatorWallet: wallet,
@@ -105,11 +114,11 @@ export function DashboardEditProductPage() {
         productInfo: draft.productInfo.trim() || undefined,
         coverUrl: draft.coverUrl || undefined,
         thumbnailUrl: draft.coverUrl || undefined,
-        currency: "PUSD",
+        currency: draft.currency,
         price: amountInSmallest,
-        priceSol: 0,
-        priceUsdc: 0,
-        priceAudd: 0,
+        priceSol: draft.currency === "SOL" ? amount : 0,
+        priceUsdc: draft.currency === "USDC" ? amount : 0,
+        priceAudd: draft.currency === "AUDD" ? amount : 0,
         contentUrl: contentUrl,
         productType: productType,
         status,
@@ -168,10 +177,26 @@ export function DashboardEditProductPage() {
             />
           </div>
           <div className="gum-field">
-            <label className="gum-label">Price (PUSD)</label>
+            <label className="gum-label">Price</label>
             <div className="dash-price-bar gum-price-bar">
               <div className="dash-price-bar__left">
-                <span className="dash-currency-trigger">PUSD</span>
+                <select
+                  className="dash-currency-select"
+                  value={draft.currency}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      currency: e.target.value as ProductCurrency,
+                    }))
+                  }
+                  aria-label="Select listing currency"
+                >
+                  {CRYPTO_OPTIONS.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.code}
+                    </option>
+                  ))}
+                </select>
               </div>
               <input
                 className="dash-price-bar__input"

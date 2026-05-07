@@ -1,7 +1,8 @@
 type RuntimeTokens = {
   PUSD: { symbol: "PUSD"; mint: string; decimals: number; isDefault: true };
   USDC: { symbol: "USDC"; mint: string; decimals: number };
-  SOL: { symbol: "SOL"; type: "native" };
+  AUDD: { symbol: "AUDD"; mint: string; decimals: number };
+  SOL: { symbol: "SOL"; mint: string; decimals: number };
 };
 
 export const TOKENS: RuntimeTokens = {
@@ -16,9 +17,16 @@ export const TOKENS: RuntimeTokens = {
     mint: import.meta.env.VITE_USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>",
     decimals: 6,
   },
+  AUDD: {
+    symbol: "AUDD",
+    mint: import.meta.env.VITE_AUDD_MINT_ADDRESS || "<AUDD_MINT_ADDRESS>",
+    decimals: 6,
+  },
   SOL: {
     symbol: "SOL",
-    type: "native",
+    // Umbra operates on token mints; use wrapped SOL mint for SOL-priced private checkout.
+    mint: import.meta.env.VITE_WSOL_MINT_ADDRESS || "So11111111111111111111111111111111111111112",
+    decimals: 9,
   },
 };
 
@@ -42,6 +50,12 @@ export async function syncTokensFromBackend() {
     }
     if (typeof data?.USDC?.decimals === "number") {
       TOKENS.USDC.decimals = data.USDC.decimals;
+    }
+    if (data?.AUDD?.mint && data.AUDD.mint !== TOKENS.AUDD.mint) {
+      TOKENS.AUDD.mint = data.AUDD.mint;
+    }
+    if (typeof data?.AUDD?.decimals === "number") {
+      TOKENS.AUDD.decimals = data.AUDD.decimals;
     }
   } catch {
     // Keep local token constants if remote token endpoint is unavailable.

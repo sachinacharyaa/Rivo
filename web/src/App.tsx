@@ -518,6 +518,32 @@ function ProductPage() {
     }
   }, [product, wallet]);
 
+  const getUmbraMintAndAmount = (p: Product) => {
+    const currency = p.currency ?? "PUSD";
+    if (currency === "PUSD") {
+      return { currency, mintAddress: TOKENS.PUSD.mint, amount: p.price ?? 0 };
+    }
+    if (currency === "USDC") {
+      return {
+        currency,
+        mintAddress: TOKENS.USDC.mint,
+        amount: Math.round((p.priceUsdc ?? 0) * 10 ** TOKENS.USDC.decimals),
+      };
+    }
+    if (currency === "AUDD") {
+      return {
+        currency,
+        mintAddress: TOKENS.AUDD.mint,
+        amount: Math.round((p.priceAudd ?? 0) * 10 ** TOKENS.AUDD.decimals),
+      };
+    }
+    return {
+      currency: "SOL" as const,
+      mintAddress: TOKENS.SOL.mint,
+      amount: Math.round((p.priceSol ?? 0) * 10 ** TOKENS.SOL.decimals),
+    };
+  };
+
   const buy = async () => {
     if (!product) return;
     setError("");
@@ -529,26 +555,13 @@ function ProductPage() {
       return;
     }
 
-    if (product.currency === "USDC") {
-      setError(
-        "This listing is priced in USDC. On-chain checkout for USDC is not enabled yet — ask the creator for a SOL-priced version.",
-      );
-      return;
-    }
-
-    if (product.currency === "AUDD") {
-      setError(
-        "This listing is priced in AUDD. On-chain checkout for AUDD is not enabled yet — ask the creator for a SOL-priced version.",
-      );
-      return;
-    }
-
     setBusy(true);
     try {
       const buyerWallet = publicKey.toBase58();
       const creatorAddress = product.payoutWallet || product.creatorWallet;
-      if ((product.currency ?? "PUSD") !== "PUSD") {
-        throw new Error("Umbra private checkout is currently enabled for PUSD products.");
+      const payment = getUmbraMintAndAmount(product);
+      if (!Number.isFinite(payment.amount) || payment.amount <= 0) {
+        throw new Error(`Invalid ${payment.currency} price for this product.`);
       }
       setStatus("Preparing Umbra private checkout...");
       setStatus("Awaiting wallet approval...");
@@ -557,8 +570,8 @@ function ProductPage() {
         connection,
         wallet: { publicKey },
         recipientAddress: creatorAddress,
-        mintAddress: TOKENS.PUSD.mint,
-        amount: product.price ?? 0,
+        mintAddress: payment.mintAddress,
+        amount: payment.amount,
       });
       setTxSignature(signature);
 
@@ -688,17 +701,11 @@ function ProductPage() {
               {!accessPayload && (
                 <button
                   className="btn btn-primary"
-                  disabled={busy || product.currency === "USDC" || product.currency === "AUDD"}
+                  disabled={busy}
                   onClick={buy}
                   type="button"
                 >
-                  {busy
-                    ? "Processing..."
-                    : product.currency === "USDC"
-                      ? "USDC soon"
-                      : product.currency === "AUDD"
-                        ? "AUDD soon"
-                        : "Buy now"}
+                  {busy ? "Processing..." : "Buy now"}
                 </button>
               )}
             </div>

@@ -23,15 +23,29 @@ function networkFromEndpoint(endpoint: string): "mainnet" | "devnet" | "localnet
   return "devnet";
 }
 
-export async function handleUmbraPrivatePayment({
+function normalizeUmbraSimulationError(error: unknown): Error {
+  const msg = error instanceof Error ? error.message : String(error);
+  const low = msg.toLowerCase();
+  if (
+    low.includes("transaction simulation failed") ||
+    low.includes("simulation failed") ||
+    low.includes("custom program error")
+  ) {
+    return new Error(
+      "Umbra transaction simulation failed. Ensure both buyer and creator are Umbra-registered on this network, the mint is supported by Umbra, and the buyer has enough token balance plus SOL for fees.",
+    );
+  }
+  return error instanceof Error ? error : new Error(msg);
+}
+
+async function createUmbraClientForWallet({
   connection,
   wallet,
-  recipientAddress,
-  mintAddress,
-  amount,
-}: UmbraPaymentParams): Promise<string> {
+}: {
+  connection: Connection;
+  wallet: Pick<WalletContextState, "publicKey">;
+}) {
   if (!wallet.publicKey) throw new Error("Connect wallet first");
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid payment amount.");
 
   const sdk = (await import("@umbra-privacy/sdk")) as any;
   const wallets = getWallets().get();
@@ -63,13 +77,52 @@ export async function handleUmbraPrivatePayment({
     deferMasterSeedSignature: true,
   });
 
+  return { sdk, client };
+}
+
+export async function ensureUmbraPrivatePayoutReady({
+  connection,
+  wallet,
+}: {
+  connection: Connection;
+  wallet: Pick<WalletContextState, "publicKey">;
+}): Promise<void> {
+  const { sdk, client } = await createUmbraClientForWallet({ connection, wallet });
+  const register = sdk.getUserRegistrationFunction({ client });
+  try {
+    await register({ confidential: true, anonymous: false });
+  } catch (error) {
+    throw normalizeUmbraSimulationError(error);
+  }
+}
+
+export async function handleUmbraPrivatePayment({
+  connection,
+  wallet,
+  recipientAddress,
+  mintAddress,
+  amount,
+}: UmbraPaymentParams): Promise<string> {
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid payment amount.");
+  const { sdk, client } = await createUmbraClientForWallet({ connection, wallet });
+
   // Idempotent registration. Umbra account init + key setup if missing.
   const register = sdk.getUserRegistrationFunction({ client });
-  await register({ confidential: true, anonymous: true });
+  // Keep checkout prover-free: anonymous registration requires a zkProver dependency.
+  try {
+    await register({ confidential: true, anonymous: false });
+  } catch (error) {
+    throw normalizeUmbraSimulationError(error);
+  }
 
   // Private checkout rail: deposit buyer public balance into recipient encrypted balance.
   const deposit = sdk.getPublicBalanceToEncryptedBalanceDirectDepositorFunction({ client });
-  const result = await deposit(recipientAddress, mintAddress, BigInt(Math.round(amount)));
+  let result: any;
+  try {
+    result = await deposit(recipientAddress, mintAddress, BigInt(Math.round(amount)));
+  } catch (error) {
+    throw normalizeUmbraSimulationError(error);
+  }
 
   const signature =
     result?.callbackSignature ||

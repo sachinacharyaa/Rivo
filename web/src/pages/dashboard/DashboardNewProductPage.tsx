@@ -5,7 +5,8 @@ import { api } from "../../lib/api";
 import { FormatProductDescription, descriptionToHtml } from "../../lib/richDescription";
 import { formatProductPrice, readFileAsDataUrl } from "../../lib/productUtils";
 import { productPublicUrl } from "../../lib/productUtils";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { CRYPTO_OPTIONS, type ProductCurrency } from "../../lib/productUtils";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
 
@@ -25,6 +26,7 @@ const SERVICE_TYPES = [
 
 export function DashboardNewProductPage() {
   const navigate = useNavigate();
+  const { connection } = useConnection();
   const { publicKey } = useWallet();
   const wallet = publicKey?.toBase58() ?? "";
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -39,7 +41,7 @@ export function DashboardNewProductPage() {
   const [draft, setDraft] = useState({
     name: "",
     productType: "digital",
-    currency: "PUSD" as const,
+    currency: "PUSD" as ProductCurrency,
     priceAmount: "",
     description: "",
     productInfo: "",
@@ -80,8 +82,16 @@ export function DashboardNewProductPage() {
     setSubmitting(true);
     setError("");
     const price = Number(draft.priceAmount);
-    const smallestUnitPrice = Math.round(price * 10 ** TOKENS.PUSD.decimals);
+    const smallestUnitPrice =
+      draft.currency === "PUSD" ? Math.round(price * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
+      // Auto-enable creator Umbra payout readiness on publish.
+      const { ensureUmbraPrivatePayoutReady } = await import("../../lib/umbraPayment");
+      await ensureUmbraPrivatePayoutReady({
+        connection,
+        wallet: { publicKey },
+      });
+
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
       const uploadRes = await api.post<{
@@ -109,11 +119,11 @@ export function DashboardNewProductPage() {
         contentUrl: uploadRes.data.downloadUrl || uploadRes.data.backupUrl,
         coverUrl: draft.coverUrl || undefined,
         thumbnailUrl: draft.coverUrl || undefined,
-        currency: "PUSD",
+        currency: draft.currency,
         price: smallestUnitPrice,
-        priceSol: 0,
-        priceUsdc: 0,
-        priceAudd: 0,
+        priceSol: draft.currency === "SOL" ? price : 0,
+        priceUsdc: draft.currency === "USDC" ? price : 0,
+        priceAudd: draft.currency === "AUDD" ? price : 0,
         productType: draft.productType,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,
@@ -275,11 +285,14 @@ export function DashboardNewProductPage() {
   }, [step]);
 
   const previewProduct: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceAudd"> = {
-    currency: "PUSD",
-    price: Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals),
-    priceSol: 0,
-    priceUsdc: 0,
-    priceAudd: 0,
+    currency: draft.currency,
+    price:
+      draft.currency === "PUSD"
+        ? Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals)
+        : 0,
+    priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
+    priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
+    priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
   };
 
   return (
@@ -309,7 +322,7 @@ export function DashboardNewProductPage() {
         <div className="gum-new-grid">
           <aside className="gum-new-aside">
             <p className="gum-muted">
-              Need help adding a product? Use a clear title, pick the closest type, and set your PUSD price.
+              Need help adding a product? Use a clear title, pick the closest type, and set your listing price.
             </p>
             <a href="https://github.com/sachinacharyaa/Rivo" className="gum-link" target="_blank" rel="noreferrer">
               View docs
@@ -358,10 +371,26 @@ export function DashboardNewProductPage() {
             </div>
 
             <div className="gum-field">
-              <label className="gum-label">Price (PUSD)</label>
+              <label className="gum-label">Price</label>
               <div className="dash-price-bar gum-price-bar">
                 <div className="dash-price-bar__left">
-                  <span className="dash-currency-trigger">PUSD</span>
+                  <select
+                    className="dash-currency-select"
+                    value={draft.currency}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        currency: e.target.value as ProductCurrency,
+                      }))
+                    }
+                    aria-label="Select listing currency"
+                  >
+                    {CRYPTO_OPTIONS.map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.code}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <input
                   className="dash-price-bar__input"
@@ -563,7 +592,9 @@ export function DashboardNewProductPage() {
                 </p>
                 {draft.productInfo ? <p className="dash-preview-card__note dash-preview-card__note--inline">{draft.productInfo}</p> : null}
               </div>
-              <p className="dash-preview-card__note">Buyers see this page after they pay with PUSD.</p>
+              <p className="dash-preview-card__note">
+                Buyers see this page after checkout. Default listing currency is PUSD, but you can choose others.
+              </p>
             </div>
           </aside>
         </div>

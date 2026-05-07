@@ -91,6 +91,18 @@ const purchaseSchema = new mongoose.Schema(
 
 const Product = mongoose.models.Product || mongoose.model("Product", productSchema);
 const Purchase = mongoose.models.Purchase || mongoose.model("Purchase", purchaseSchema);
+const visitorEventSchema = new mongoose.Schema(
+  {
+    path: { type: String, required: true, index: true },
+    referrer: { type: String, default: "" },
+    userAgent: { type: String, default: "" },
+    country: { type: String, default: "" },
+    ipHash: { type: String, default: "", index: true },
+  },
+  { timestamps: true },
+);
+const VisitorEvent =
+  mongoose.models.VisitorEvent || mongoose.model("VisitorEvent", visitorEventSchema);
 
 const slugify = (value) =>
   value
@@ -319,6 +331,97 @@ export function createApp() {
   });
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  app.post("/api/analytics/track", async (req, res) => {
+    try {
+      const path = String(req.body?.path || "").trim();
+      if (!path || !path.startsWith("/")) {
+        return res.status(400).json({ message: "path must be an absolute route path" });
+      }
+
+      const referrer = String(req.body?.referrer || "").slice(0, 1000);
+      const userAgent = String(req.headers["user-agent"] || "").slice(0, 1000);
+      const country = String(req.headers["x-vercel-ip-country"] || "").slice(0, 16);
+      const ip =
+        String(req.headers["x-forwarded-for"] || "")
+          .split(",")[0]
+          .trim() || String(req.socket?.remoteAddress || "");
+      const ipHash = ip
+        ? crypto.createHash("sha256").update(ip).digest("hex").slice(0, 24)
+        : "";
+
+      await VisitorEvent.create({
+        path: path.slice(0, 500),
+        referrer,
+        userAgent,
+        country,
+        ipHash,
+      });
+
+      return res.status(201).json({ ok: true });
+    } catch {
+      return res.status(500).json({ message: "Failed to track analytics event" });
+    }
+  });
+
+  app.get("/api/analytics/dashboard", async (_req, res) => {
+    try {
+      const now = Date.now();
+      const last24h = new Date(now - 24 * 60 * 60 * 1000);
+      const last7d = new Date(now - 7 * 24 * 60 * 60 * 1000);
+      const last30d = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+      const [events24h, events7d, events30d, totalsByPath, topCountries, recentEvents] =
+        await Promise.all([
+          VisitorEvent.countDocuments({ createdAt: { $gte: last24h } }),
+          VisitorEvent.countDocuments({ createdAt: { $gte: last7d } }),
+          VisitorEvent.countDocuments({ createdAt: { $gte: last30d } }),
+          VisitorEvent.aggregate([
+            { $match: { createdAt: { $gte: last30d } } },
+            { $group: { _id: "$path", views: { $sum: 1 } } },
+            { $sort: { views: -1 } },
+            { $limit: 12 },
+          ]),
+          VisitorEvent.aggregate([
+            { $match: { createdAt: { $gte: last30d } } },
+            { $group: { _id: "$country", views: { $sum: 1 } } },
+            { $sort: { views: -1 } },
+            { $limit: 8 },
+          ]),
+          VisitorEvent.find({}, { path: 1, country: 1, referrer: 1, createdAt: 1 })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean(),
+        ]);
+
+      return res.json({
+        window: "30d",
+        visitors: {
+          events24h,
+          events7d,
+          events30d,
+        },
+        topPages: totalsByPath.map((item) => ({
+          path: item._id || "(unknown)",
+          views: item.views || 0,
+        })),
+        topCountries: topCountries
+          .filter((item) => item._id)
+          .map((item) => ({
+            country: item._id,
+            views: item.views || 0,
+          })),
+        recent: recentEvents.map((item) => ({
+          path: item.path,
+          country: item.country || "N/A",
+          referrer: item.referrer || "Direct",
+          createdAt: item.createdAt,
+        })),
+      });
+    } catch {
+      return res.status(500).json({ message: "Failed to load analytics dashboard" });
+    }
+  });
 
   app.get("/api/tokens", (_req, res) => {
     return res.json({

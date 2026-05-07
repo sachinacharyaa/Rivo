@@ -24,7 +24,6 @@ import { DashboardEditProductPage } from "./pages/dashboard/DashboardEditProduct
 import { DashboardPaymentPage } from "./pages/dashboard/DashboardPaymentPage";
 import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
-import { DashboardAnalyticsPage } from "./pages/dashboard/DashboardAnalyticsPage";
 
 type Product = ProductShape;
 type AccessPayload =
@@ -829,7 +828,6 @@ export function App() {
           <Route path="payment" element={<DashboardPaymentPage />} />
           <Route path="purchases" element={<DashboardPurchasesPage />} />
           <Route path="discover" element={<DashboardDiscoverPage />} />
-          <Route path="analytics" element={<DashboardAnalyticsPage />} />
         </Route>
         <Route path="/p/:id" element={<ProductPage />} />
         <Route path="/:slug" element={<ProductPage />} />

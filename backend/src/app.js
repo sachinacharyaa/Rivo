@@ -68,6 +68,7 @@ const productSchema = new mongoose.Schema(
     contentHash: { type: String, default: "" },
     productType: { type: String, default: "digital" },
     productInfo: { type: String, default: "" },
+    umbraReady: { type: Boolean, default: false },
     status: { type: String, enum: ["draft", "published"], default: "published" },
     creatorWallet: { type: String, required: true, index: true },
     payoutWallet: { type: String, default: "" },
@@ -221,6 +222,7 @@ const createProductSchema = z
     contentHash: z.string().max(128).optional(),
     productType: z.string().max(64).optional(),
     productInfo: z.string().max(4000).optional(),
+    umbraReady: z.boolean().optional(),
     status: z.enum(["draft", "published"]).optional(),
     creatorWallet: z.string().min(32),
     payoutWallet: z.string().min(32).optional(),
@@ -268,6 +270,7 @@ const updateProductSchema = z
     contentHash: z.string().max(128).optional(),
     productType: z.string().max(64).optional(),
     productInfo: z.string().max(4000).optional(),
+    umbraReady: z.boolean().optional(),
     status: z.enum(["draft", "published"]).optional(),
     creatorWallet: z.string().min(32),
     payoutWallet: z.string().min(32).optional(),
@@ -514,6 +517,7 @@ export function createApp() {
         thumbnailUrl: parsed.thumbnailUrl ?? "",
         productType: parsed.productType ?? "digital",
         productInfo: parsed.productInfo ?? "",
+        umbraReady: parsed.umbraReady ?? false,
         status: parsed.status ?? "draft",
         payoutWallet: parsed.payoutWallet ?? parsed.creatorWallet,
       });
@@ -567,6 +571,7 @@ export function createApp() {
         contentHash: req.body.contentHash ?? product.contentHash ?? "",
         productType: req.body.productType ?? product.productType ?? "digital",
         productInfo: req.body.productInfo ?? product.productInfo ?? "",
+        umbraReady: req.body.umbraReady ?? product.umbraReady ?? false,
         status: req.body.status ?? product.status ?? "draft",
         creatorWallet: req.body.creatorWallet,
         payoutWallet:
@@ -600,6 +605,7 @@ export function createApp() {
       product.contentHash = parsed.contentHash ?? "";
       product.productType = parsed.productType ?? "digital";
       product.productInfo = parsed.productInfo ?? "";
+      product.umbraReady = parsed.umbraReady ?? product.umbraReady ?? false;
       product.status = parsed.status ?? product.status;
       product.payoutWallet =
         parsed.payoutWallet ||
@@ -624,6 +630,12 @@ export function createApp() {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
     const checkoutCurrency = currency || product.currency || "PUSD";
+    if (checkoutMode === "private" && !product.umbraReady) {
+      return res.status(400).json({
+        message:
+          "Creator Umbra payout is not ready for this product yet. Ask the creator to re-publish after successful Umbra setup.",
+      });
+    }
     if (checkoutCurrency === "PUSD" && (!product.price || product.price <= 0)) {
       return res.status(400).json({ message: "This product has no PUSD price" });
     }

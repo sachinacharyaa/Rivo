@@ -2,5 +2,6 @@
   "name": "USDC",
   "symbol": "USDC",
   "description": "Devnet USDC-like token for testing in Rivo",
-  "image": "https://raw.githubusercontent.com/sachinacharyaa/Rivo/main/assets/usdc-logo.png"
+  "image": "https://raw.githubusercontent.com/sachinacharyaa/Rivo/main/assets/usdc-logo.png",
+  "uri": "https://raw.githubusercontent.com/sachinacharyaa/Rivo/main/assets/usdc-devnet-metadata.json"
 }

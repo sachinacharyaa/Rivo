@@ -16,10 +16,47 @@ function toWsEndpoint(rpcUrl: string): string {
   return rpcUrl;
 }
 
-function networkFromEndpoint(endpoint: string): "mainnet" | "devnet" | "localnet" {
+function readUmbraNetworkOverride(): "mainnet" | "devnet" | "localnet" | null {
+  const raw = String(import.meta.env.VITE_UMBRA_NETWORK || "")
+    .trim()
+    .toLowerCase();
+  if (raw === "mainnet" || raw === "devnet" || raw === "localnet") return raw;
+  return null;
+}
+
+function networkFromEndpoint(endpoint: string): "mainnet" | "devnet" | "localnet" | null {
   const e = endpoint.toLowerCase();
-  if (e.includes("mainnet")) return "mainnet";
   if (e.includes("localhost") || e.includes("127.0.0.1")) return "localnet";
+  if (e.includes("mainnet")) return "mainnet";
+  if (e.includes("devnet")) return "devnet";
+  return null;
+}
+
+function networkFromGenesisHash(genesisHash: string): "mainnet" | "devnet" | "localnet" | null {
+  // Official Solana genesis hashes:
+  // mainnet-beta => 5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp
+  // devnet       => EtWTRABZaYq6iMfeYKouRu166VU2xqa1
+  // testnet      => 4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z
+  if (genesisHash === "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp") return "mainnet";
+  if (genesisHash === "EtWTRABZaYq6iMfeYKouRu166VU2xqa1") return "devnet";
+  return null;
+}
+
+async function resolveUmbraNetwork(connection: Connection, rpcUrl: string): Promise<"mainnet" | "devnet" | "localnet"> {
+  const override = readUmbraNetworkOverride();
+  if (override) return override;
+
+  const byEndpoint = networkFromEndpoint(rpcUrl);
+  if (byEndpoint) return byEndpoint;
+
+  try {
+    const hash = await connection.getGenesisHash();
+    const byHash = networkFromGenesisHash(hash);
+    if (byHash) return byHash;
+  } catch {
+    // Fall through to safe default below.
+  }
+
   return "devnet";
 }
 
@@ -68,9 +105,10 @@ async function createUmbraClientForWallet({
 
   const signer = sdk.createSignerFromWalletAccount(connectedWallet, account);
   const rpcUrl = connection.rpcEndpoint || "https://api.devnet.solana.com";
+  const network = await resolveUmbraNetwork(connection, rpcUrl);
   const client = await sdk.getUmbraClient({
     signer,
-    network: networkFromEndpoint(rpcUrl),
+    network,
     rpcUrl,
     rpcSubscriptionsUrl: toWsEndpoint(rpcUrl),
     indexerApiEndpoint: import.meta.env.VITE_UMBRA_INDEXER_ENDPOINT || undefined,

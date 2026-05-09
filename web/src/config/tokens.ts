@@ -1,6 +1,7 @@
 type RuntimeTokens = {
   PUSD: { symbol: "PUSD"; mint: string; decimals: number; isDefault: true };
   USDC: { symbol: "USDC"; mint: string; decimals: number };
+  USDT: { symbol: "USDT"; mint: string; decimals: number };
   AUDD: { symbol: "AUDD"; mint: string; decimals: number };
   SOL: { symbol: "SOL"; mint: string; decimals: number };
 };
@@ -15,6 +16,11 @@ export const TOKENS: RuntimeTokens = {
   USDC: {
     symbol: "USDC",
     mint: import.meta.env.VITE_USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>",
+    decimals: 6,
+  },
+  USDT: {
+    symbol: "USDT",
+    mint: import.meta.env.VITE_USDT_MINT_ADDRESS || "<USDT_MINT_ADDRESS>",
     decimals: 6,
   },
   AUDD: {
@@ -50,6 +56,12 @@ export async function syncTokensFromBackend() {
     }
     if (typeof data?.USDC?.decimals === "number") {
       TOKENS.USDC.decimals = data.USDC.decimals;
+    }
+    if (data?.USDT?.mint && data.USDT.mint !== TOKENS.USDT.mint) {
+      TOKENS.USDT.mint = data.USDT.mint;
+    }
+    if (typeof data?.USDT?.decimals === "number") {
+      TOKENS.USDT.decimals = data.USDT.decimals;
     }
     if (data?.AUDD?.mint && data.AUDD.mint !== TOKENS.AUDD.mint) {
       TOKENS.AUDD.mint = data.AUDD.mint;

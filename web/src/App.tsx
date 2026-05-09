@@ -299,7 +299,7 @@ function Home() {
           <div className="gr-tag bg-white">Core features</div>
           <h2 className="gr-title-huge">Everything you need to sell on-chain.</h2>
           <p className="gr-subtitle">
-            SOL payments now, USDC support coming next. Quick and seamless.
+            Pay with SOL, PUSD, USDT, or AUDD. Quick and seamless.
           </p>
           <div className="gr-grid-3 mt-16">
             {[
@@ -458,7 +458,7 @@ function ProductsPage() {
 function ProductPage() {
   const { id, slug } = useParams();
   const { connection } = useConnection();
-  const { publicKey } = useWallet();
+  const { publicKey, sendTransaction } = useWallet();
   const wallet = publicKey?.toBase58() ?? "";
   const [product, setProduct] = useState<Product | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -467,6 +467,7 @@ function ProductPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [checkoutWarning, setCheckoutWarning] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
   const networkLabel = useMemo(() => {
     const endpoint = (connection.rpcEndpoint || "").toLowerCase();
@@ -530,6 +531,13 @@ function ProductPage() {
         amount: Math.round((p.priceUsdc ?? 0) * 10 ** TOKENS.USDC.decimals),
       };
     }
+    if (currency === "USDT") {
+      return {
+        currency,
+        mintAddress: TOKENS.USDT.mint,
+        amount: Math.round((p.priceUsdt ?? 0) * 10 ** TOKENS.USDT.decimals),
+      };
+    }
     if (currency === "AUDD") {
       return {
         currency,
@@ -549,6 +557,7 @@ function ProductPage() {
     setError("");
     setStatus("");
     setTxSignature("");
+    setCheckoutWarning("");
 
     if (!publicKey) {
       setError("Connect your wallet first (header or wallet button).");
@@ -559,38 +568,93 @@ function ProductPage() {
     try {
       const buyerWallet = publicKey.toBase58();
       const creatorAddress = product.payoutWallet || product.creatorWallet;
-      if (!product.umbraReady) {
-        throw new Error(
-          "Creator Umbra payout is not ready for this product yet. Ask creator to re-publish after Umbra setup.",
-        );
-      }
+      const creatorUmbraReadinessKnownFalse = product.umbraReady === false;
       const payment = getUmbraMintAndAmount(product);
       if (!Number.isFinite(payment.amount) || payment.amount <= 0) {
         throw new Error(`Invalid ${payment.currency} price for this product.`);
       }
-      setStatus("Preparing Umbra private checkout...");
-      setStatus("Awaiting wallet approval...");
-      const { ensureUmbraPrivatePayoutReady, handleUmbraPrivatePayment } = await import("./lib/umbraPayment");
-      await ensureUmbraPrivatePayoutReady({
-        connection,
-        wallet: { publicKey },
-      });
-      const signature = await handleUmbraPrivatePayment({
-        connection,
-        wallet: { publicKey },
-        recipientAddress: creatorAddress,
-        mintAddress: payment.mintAddress,
-        amount: payment.amount,
-      });
-      setTxSignature(signature);
+      let signature = "";
+      let usedPrivateRail = false;
+      let privateRailError = "";
 
-      setStatus("Verifying Umbra payment...");
+      try {
+        if (creatorUmbraReadinessKnownFalse) {
+          setStatus("Creator Umbra readiness is unconfirmed. Trying private checkout anyway...");
+        }
+        setStatus("Preparing Umbra private checkout...");
+        setStatus("Awaiting wallet approval...");
+        const { ensureUmbraPrivatePayoutReady, handleUmbraPrivatePayment } = await import("./lib/umbraPayment");
+        await ensureUmbraPrivatePayoutReady({
+          connection,
+          wallet: { publicKey },
+        });
+        signature = await handleUmbraPrivatePayment({
+          connection,
+          wallet: { publicKey },
+          recipientAddress: creatorAddress,
+          mintAddress: payment.mintAddress,
+          amount: payment.amount,
+        });
+        usedPrivateRail = true;
+      } catch (privateError) {
+        privateRailError =
+          privateError instanceof Error ? privateError.message : String(privateError);
+        setStatus("Private checkout failed. Falling back to standard on-chain payment...");
+        setCheckoutWarning(
+          `Umbra private checkout failed and we used a fallback on-chain payment. Reason: ${privateRailError}`,
+        );
+        if ((product.currency ?? "PUSD") === "SOL") {
+          const { handlePayment } = await import("./lib/payment");
+          signature = await handlePayment({
+            connection,
+            wallet: { publicKey, sendTransaction },
+            productPriceSol: product.priceSol ?? 0,
+            creatorAddress,
+          });
+        } else if ((product.currency ?? "PUSD") === "PUSD") {
+          const { handleTokenPayment } = await import("./lib/tokenPayment");
+          signature = await handleTokenPayment({
+            connection,
+            wallet: { publicKey, sendTransaction },
+            mintAddress: TOKENS.PUSD.mint,
+            amount: Math.round(product.price ?? 0),
+            creatorAddress,
+          });
+        } else if (
+          (product.currency ?? "PUSD") === "USDT" ||
+          (product.currency ?? "PUSD") === "USDC" ||
+          (product.currency ?? "PUSD") === "AUDD"
+        ) {
+          const { handleTokenPayment } = await import("./lib/tokenPayment");
+          const cur = product.currency ?? "PUSD";
+          const tokenCfg =
+            cur === "USDT"
+              ? { mint: TOKENS.USDT.mint, human: product.priceUsdt ?? 0, decimals: TOKENS.USDT.decimals }
+              : cur === "USDC"
+                ? { mint: TOKENS.USDC.mint, human: product.priceUsdc ?? 0, decimals: TOKENS.USDC.decimals }
+                : { mint: TOKENS.AUDD.mint, human: product.priceAudd ?? 0, decimals: TOKENS.AUDD.decimals };
+          signature = await handleTokenPayment({
+            connection,
+            wallet: { publicKey, sendTransaction },
+            mintAddress: tokenCfg.mint,
+            amount: Math.round(tokenCfg.human * 10 ** tokenCfg.decimals),
+            creatorAddress,
+          });
+        } else {
+          throw new Error(
+            `${privateRailError}. Fallback is not supported for this listing currency.`,
+          );
+        }
+      }
+
+      setTxSignature(signature);
+      setStatus(usedPrivateRail ? "Verifying Umbra payment..." : "Verifying on-chain payment...");
       await api.post("/purchases/verify", {
         productId: product._id,
         buyerWallet,
         txSignature: signature,
         currency: product.currency ?? "PUSD",
-        paymentMode: "private",
+        paymentMode: usedPrivateRail ? "private" : "public",
       });
 
       setStatus("Unlocking content...");
@@ -694,10 +758,18 @@ function ProductPage() {
             <div className="product-public-actions">
               {!accessPayload ? (
                 <div className="product-public-mode">
-                  <div className="product-public-mode__label">Umbra private checkout enabled</div>
+                  <div className="product-public-mode__label">
+                    {product.umbraReady === false
+                      ? "Umbra private checkout needs creator setup"
+                      : "Umbra private checkout enabled"}
+                  </div>
                   <div className="product-public-mode__row">
                     <div className="product-public-mode__option product-public-mode__option--active">
-                      <span>Private payment (Umbra)</span>
+                      <span>
+                        {product.umbraReady === false
+                          ? "Private payment (Umbra) - setup pending"
+                          : "Private payment (Umbra)"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -728,6 +800,9 @@ function ProductPage() {
               <div className="product-public-toast product-public-toast--error">
                 {error}
               </div>
+            ) : null}
+            {checkoutWarning && !error ? (
+              <div className="product-public-toast product-public-toast--info">{checkoutWarning}</div>
             ) : null}
 
             {accessPayload ? (

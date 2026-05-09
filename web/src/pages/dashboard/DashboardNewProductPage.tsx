@@ -33,6 +33,7 @@ export function DashboardNewProductPage() {
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [publishNotice, setPublishNotice] = useState("");
   const [createdProduct, setCreatedProduct] = useState<ProductShape | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [copied, setCopied] = useState(false);
@@ -81,16 +82,26 @@ export function DashboardNewProductPage() {
     }
     setSubmitting(true);
     setError("");
+    setPublishNotice("");
     const price = Number(draft.priceAmount);
     const smallestUnitPrice =
       draft.currency === "PUSD" ? Math.round(price * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
-      // Strict readiness gate: require creator Umbra setup before publish.
-      const { ensureUmbraPrivatePayoutReady } = await import("../../lib/umbraPayment");
-      await ensureUmbraPrivatePayoutReady({
-        connection,
-        wallet: { publicKey },
-      });
+      // Best-effort Umbra readiness: do not block product creation on setup simulation issues.
+      let umbraReady = false;
+      try {
+        const { ensureUmbraPrivatePayoutReady } = await import("../../lib/umbraPayment");
+        await ensureUmbraPrivatePayoutReady({
+          connection,
+          wallet: { publicKey },
+        });
+        umbraReady = true;
+      } catch (umbraError) {
+        const detail = umbraError instanceof Error ? umbraError.message : "Umbra setup failed.";
+        setPublishNotice(
+          `Product created, but private checkout is not ready yet. Reason: ${detail} You can still share the listing and retry checkout setup later.`,
+        );
+      }
 
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
@@ -122,10 +133,11 @@ export function DashboardNewProductPage() {
         currency: draft.currency,
         price: smallestUnitPrice,
         priceSol: draft.currency === "SOL" ? price : 0,
-        priceUsdc: draft.currency === "USDC" ? price : 0,
+        priceUsdc: 0,
+        priceUsdt: draft.currency === "USDT" ? price : 0,
         priceAudd: draft.currency === "AUDD" ? price : 0,
         productType: draft.productType,
-        umbraReady: true,
+        umbraReady,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,
         status: "draft",
@@ -285,14 +297,18 @@ export function DashboardNewProductPage() {
     return () => document.removeEventListener("selectionchange", onSelection);
   }, [step]);
 
-  const previewProduct: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceAudd"> = {
+  const previewProduct: Pick<
+    ProductShape,
+    "currency" | "price" | "priceSol" | "priceUsdc" | "priceUsdt" | "priceAudd"
+  > = {
     currency: draft.currency,
     price:
       draft.currency === "PUSD"
         ? Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals)
         : 0,
     priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
-    priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
+    priceUsdc: 0,
+    priceUsdt: draft.currency === "USDT" ? Number(draft.priceAmount) || 0 : 0,
     priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
   };
 
@@ -627,6 +643,7 @@ export function DashboardNewProductPage() {
               Return to products
             </Link>
           </div>
+          {publishNotice ? <div className="dash-alert" style={{ marginTop: "12px" }}>{publishNotice}</div> : null}
         </div>
       ) : null}
     </div>

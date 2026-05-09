@@ -62,7 +62,7 @@ export async function handleTokenPayment({
 
   const buyerAtaInfo = await connection.getAccountInfo(buyerAta, "confirmed");
   if (!buyerAtaInfo) {
-    throw new Error("Your wallet does not have a PUSD token account.");
+    throw new Error("Your wallet does not have a token account for this mint.");
   }
 
   // Split payment: 99% -> creator, 1% -> platform.

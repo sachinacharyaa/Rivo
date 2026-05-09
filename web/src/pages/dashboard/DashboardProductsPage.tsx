@@ -17,7 +17,7 @@ import type { ProductShape } from "../../types/product";
 type CurrencyTotals = Record<ProductCurrency, number>;
 
 function emptyCurrencyTotals(): CurrencyTotals {
-  return { PUSD: 0, SOL: 0, USDC: 0, AUDD: 0 };
+  return { PUSD: 0, SOL: 0, USDC: 0, USDT: 0, AUDD: 0 };
 }
 
 function CurrencyTotalsList({ totals }: { totals: CurrencyTotals }) {

@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
 import { api } from "../../lib/api";
 import {
-  CRYPTO_OPTIONS,
+  currencyOptionsForProductEditor,
   formatProductPrice,
   readFileAsDataUrl,
   type ProductCurrency,
@@ -53,9 +53,11 @@ export function DashboardEditProductPage() {
               ? (p.price ?? 0) / 10 ** TOKENS.PUSD.decimals
               : p.currency === "USDC"
                 ? p.priceUsdc ?? 0
-                : p.currency === "AUDD"
-                  ? p.priceAudd ?? 0
-                  : p.priceSol ?? 0,
+                : p.currency === "USDT"
+                  ? p.priceUsdt ?? 0
+                  : p.currency === "AUDD"
+                    ? p.priceAudd ?? 0
+                    : p.priceSol ?? 0,
           ),
           coverUrl: p.coverUrl || "",
         });
@@ -76,6 +78,7 @@ export function DashboardEditProductPage() {
           : 0,
       priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
       priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
+      priceUsdt: draft.currency === "USDT" ? Number(draft.priceAmount) || 0 : 0,
       priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
     }),
     [draft.currency, draft.priceAmount],
@@ -118,6 +121,7 @@ export function DashboardEditProductPage() {
         price: amountInSmallest,
         priceSol: draft.currency === "SOL" ? amount : 0,
         priceUsdc: draft.currency === "USDC" ? amount : 0,
+        priceUsdt: draft.currency === "USDT" ? amount : 0,
         priceAudd: draft.currency === "AUDD" ? amount : 0,
         contentUrl: contentUrl,
         productType: productType,
@@ -191,7 +195,7 @@ export function DashboardEditProductPage() {
                   }
                   aria-label="Select listing currency"
                 >
-                  {CRYPTO_OPTIONS.map((option) => (
+                  {currencyOptionsForProductEditor(draft.currency).map((option) => (
                     <option key={option.code} value={option.code}>
                       {option.code}
                     </option>

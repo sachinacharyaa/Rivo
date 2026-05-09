@@ -1,7 +1,6 @@
 import type { Connection } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 import { getWallets } from "@wallet-standard/app";
-
 type UmbraPaymentParams = {
   connection: Connection;
   wallet: Pick<WalletContextState, "publicKey">;
@@ -61,18 +60,27 @@ async function resolveUmbraNetwork(connection: Connection, rpcUrl: string): Prom
 }
 
 function normalizeUmbraSimulationError(error: unknown): Error {
-  const msg = error instanceof Error ? error.message : String(error);
-  const low = msg.toLowerCase();
-  if (
+  const rawMsg = error instanceof Error ? error.message : String(error);
+  const stage = (error as any)?.stage;
+  const simulationLogs: string[] | undefined =
+    (error as any)?.simulationLogs ||
+    (error as any)?.context?.simulationLogs;
+  const briefLogs = simulationLogs?.slice(-6).join("\n");
+
+  const low = rawMsg.toLowerCase();
+  const isSimFail =
     low.includes("transaction simulation failed") ||
     low.includes("simulation failed") ||
-    low.includes("custom program error")
-  ) {
-    return new Error(
-      "Umbra transaction simulation failed. Ensure both buyer and creator are Umbra-registered on this network, the mint is supported by Umbra, and the buyer has enough token balance plus SOL for fees.",
-    );
-  }
-  return error instanceof Error ? error : new Error(msg);
+    low.includes("custom program error");
+
+  if (!isSimFail) return error instanceof Error ? error : new Error(rawMsg);
+
+  return new Error(
+    `Umbra transaction simulation failed` +
+      (stage ? ` (stage: ${stage})` : "") +
+      `. Ensure buyer + recipient are registered on this network and the mint has an active Umbra pool. Raw error: ${rawMsg}` +
+      (briefLogs ? `\nSimulation logs (tail):\n${briefLogs}` : ""),
+  );
 }
 
 async function createUmbraClientForWallet({
@@ -159,7 +167,29 @@ export async function handleUmbraPrivatePayment({
   try {
     result = await deposit(recipientAddress, mintAddress, BigInt(Math.round(amount)));
   } catch (error) {
-    throw normalizeUmbraSimulationError(error);
+    // Some RPCs/validators can reject during preflight simulation even when the transaction
+    // would succeed. Retry with preflight skipped to unblock private checkout.
+    const rawMsg = error instanceof Error ? error.message : String(error);
+    const low = rawMsg.toLowerCase();
+    const isSimFail =
+      low.includes("transaction simulation failed") ||
+      low.includes("simulation failed") ||
+      low.includes("custom program error");
+
+    if (isSimFail) {
+      try {
+        result = await deposit(recipientAddress, mintAddress, BigInt(Math.round(amount)), {
+          skipPreflight: true,
+          // Be forgiving when the callback is slow; still fail fast on real errors.
+          maxRetries: 3,
+        });
+      } catch (error2) {
+        throw normalizeUmbraSimulationError(error2);
+      }
+    } else {
+      // Non-simulation failures should not be retried with skipPreflight.
+      throw normalizeUmbraSimulationError(error);
+    }
   }
 
   const signature =

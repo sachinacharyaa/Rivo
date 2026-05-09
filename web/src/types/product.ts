@@ -17,8 +17,9 @@ export type ProductShape = {
   price?: number;
   priceSol: number;
   priceUsdc?: number;
+  priceUsdt?: number;
   priceAudd?: number;
-  currency?: "PUSD" | "SOL" | "USDC" | "AUDD";
+  currency?: "PUSD" | "SOL" | "USDC" | "USDT" | "AUDD";
   contentUrl: string;
   coverUrl?: string;
   thumbnailUrl?: string;

@@ -5,10 +5,10 @@ import axios from "axios";
 import { api } from "../../lib/api";
 import {
   currencyOptionsForProductEditor,
-  formatProductPrice,
   readFileAsDataUrl,
   type ProductCurrency,
 } from "../../lib/productUtils";
+import { PriceFieldLabel, ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import { FormatProductDescription } from "../../lib/richDescription";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
@@ -181,7 +181,9 @@ export function DashboardEditProductPage() {
             />
           </div>
           <div className="gum-field">
-            <label className="gum-label">Price</label>
+            <label className="gum-label">
+              <PriceFieldLabel currency={draft.currency} />
+            </label>
             <div className="dash-price-bar gum-price-bar">
               <div className="dash-price-bar__left">
                 <select
@@ -254,7 +256,9 @@ export function DashboardEditProductPage() {
             </div>
             <div className="dash-preview-card__body">
               <div className="dash-preview-card__title">{draft.name || "Product"}</div>
-              <div className="dash-preview-card__price">{formatProductPrice(previewProduct)}</div>
+              <div className="dash-preview-card__price">
+                <ProductPriceWithLogo product={previewProduct} />
+              </div>
               <p className="dash-preview-card__summary">
                 {draft.description ? <FormatProductDescription text={draft.description} /> : "Description preview"}
               </p>

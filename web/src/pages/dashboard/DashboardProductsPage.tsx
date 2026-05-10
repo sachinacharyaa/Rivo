@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../lib/api";
 import {
-  formatProductPrice,
   formatTokenAmount,
   getProductPriceAmount,
   normalizeCurrency,
@@ -12,6 +11,7 @@ import {
   SUPPORTED_CURRENCIES,
   type ProductCurrency,
 } from "../../lib/productUtils";
+import { ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import type { ProductShape } from "../../types/product";
 
 type CurrencyTotals = Record<ProductCurrency, number>;
@@ -140,7 +140,9 @@ export function DashboardProductsPage() {
                       </td>
                       <td>{p.salesCount}</td>
                       <td>{formatTokenAmount(rev, currency)}</td>
-                      <td>{formatProductPrice(p)}</td>
+                      <td>
+                        <ProductPriceWithLogo product={p} />
+                      </td>
                       <td>
                         <span className={`gum-status gum-status--${status === "Published" ? "live" : "draft"}`}>{status}</span>
                       </td>

@@ -609,6 +609,65 @@ a {
   font-weight: 700;
 }
 
+/* Token logos: form "Price" labels and price amounts */
+.rivo-price-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rivo-price-label__text {
+  line-height: 1.2;
+}
+
+.rivo-currency-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.rivo-price-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: inherit;
+}
+
+.rivo-price-value__logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 5px;
+}
+
+.product-price .rivo-price-value__logo {
+  width: 20px;
+  height: 20px;
+}
+
+.product-public-price .rivo-price-value__logo {
+  width: 28px;
+  height: 28px;
+}
+
+.gum-discover-price .rivo-price-value__logo {
+  width: 18px;
+  height: 18px;
+}
+
+.dash-preview-card__price .rivo-price-value__logo {
+  width: 20px;
+  height: 20px;
+}
+
+.gum-table .rivo-price-value__logo {
+  width: 18px;
+  height: 18px;
+}
+
 .form-card {
   display: grid;
   gap: 14px;

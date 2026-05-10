@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { api } from "../../lib/api";
 import { FormatProductDescription, descriptionToHtml } from "../../lib/richDescription";
-import { formatProductPrice, readFileAsDataUrl } from "../../lib/productUtils";
+import { readFileAsDataUrl } from "../../lib/productUtils";
+import { PriceFieldLabel, ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import { productPublicUrl } from "../../lib/productUtils";
 import { CRYPTO_OPTIONS, type ProductCurrency } from "../../lib/productUtils";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
@@ -388,7 +389,9 @@ export function DashboardNewProductPage() {
             </div>
 
             <div className="gum-field">
-              <label className="gum-label">Price</label>
+              <label className="gum-label">
+                <PriceFieldLabel currency={draft.currency} />
+              </label>
               <div className="dash-price-bar gum-price-bar">
                 <div className="dash-price-bar__left">
                   <select
@@ -599,7 +602,9 @@ export function DashboardNewProductPage() {
               </div>
               <div className="dash-preview-card__body">
                 <div className="dash-preview-card__title">{draft.name || "Product"}</div>
-                <div className="dash-preview-card__price">{formatProductPrice(previewProduct)}</div>
+                <div className="dash-preview-card__price">
+                  <ProductPriceWithLogo product={previewProduct} />
+                </div>
                 <p className="dash-preview-card__summary">
                   {draft.description ? (
                     <FormatProductDescription text={draft.description} />

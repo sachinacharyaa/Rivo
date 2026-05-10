@@ -12,7 +12,8 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { api } from "./lib/api";
 import axios from "axios";
-import { formatProductPrice, productPublicPath } from "./lib/productUtils";
+import { productPublicPath } from "./lib/productUtils";
+import { ProductPriceWithLogo } from "./components/CurrencyPriceAssets";
 import { FormatProductDescription } from "./lib/richDescription";
 import type { ProductShape } from "./types/product";
 import { TOKENS, syncTokensFromBackend } from "./config/tokens";
@@ -444,7 +445,7 @@ function ProductsPage() {
                   )}
                 </p>
                 <div className="product-price">
-                  {formatProductPrice(product)}
+                  <ProductPriceWithLogo product={product} />
                 </div>
               </Link>
             ))}
@@ -751,7 +752,7 @@ function ProductPage() {
                 </button>
               </div>
               <div className="product-public-price">
-                {formatProductPrice(product)}
+                <ProductPriceWithLogo product={product} />
               </div>
             </div>
 

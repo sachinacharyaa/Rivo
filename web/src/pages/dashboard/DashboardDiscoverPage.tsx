@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
-import { formatProductPrice, productPublicPath } from "../../lib/productUtils";
+import { productPublicPath } from "../../lib/productUtils";
+import { ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import { FormatProductDescription } from "../../lib/richDescription";
 import type { ProductShape } from "../../types/product";
 
@@ -108,7 +109,7 @@ export function DashboardDiscoverPage() {
                     {shorten(product.creatorWallet)}
                   </span>
                   <span className="gum-discover-price">
-                    {formatProductPrice(product)}
+                    <ProductPriceWithLogo product={product} />
                   </span>
                 </div>
               </div>

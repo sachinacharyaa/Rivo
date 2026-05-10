@@ -64,6 +64,17 @@ const productSchema = new mongoose.Schema(
     encryptionAlgorithm: { type: String, default: "aes-256-gcm" },
     fileName: { type: String, default: "" },
     mimeType: { type: String, default: "" },
+    deliveryFiles: {
+      type: [
+        {
+          ipfsCid: { type: String, default: "" },
+          contentUrl: { type: String, default: "" },
+          fileName: { type: String, default: "" },
+          mimeType: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
     coverUrl: { type: String, default: "" },
     thumbnailUrl: { type: String, default: "" },
     contentHash: { type: String, default: "" },
@@ -157,6 +168,45 @@ const buildBuyerFileName = (product) => {
   return extension ? `${title}${extension}` : title;
 };
 
+const normalizeDeliveryFiles = (rawFiles) => {
+  if (!Array.isArray(rawFiles)) return [];
+  return rawFiles
+    .map((f) => ({
+      ipfsCid: String(f?.ipfsCid || "").trim(),
+      contentUrl: String(f?.contentUrl || "").trim(),
+      fileName: String(f?.fileName || "").trim(),
+      mimeType: String(f?.mimeType || "").trim(),
+    }))
+    .filter((f) => f.fileName || f.ipfsCid || f.contentUrl);
+};
+
+const getDeliveryFilesForProduct = (product) => {
+  const normalized = normalizeDeliveryFiles(product?.deliveryFiles);
+  if (normalized.length > 0) return normalized;
+  const mode = product?.deliveryMode || "direct";
+  if (mode === "ipfs_encrypted" && String(product?.ipfsCid || "").trim()) {
+    return [
+      {
+        ipfsCid: String(product.ipfsCid || "").trim(),
+        contentUrl: "",
+        fileName: String(product.fileName || "").trim(),
+        mimeType: String(product.mimeType || "").trim(),
+      },
+    ];
+  }
+  if (String(product?.contentUrl || "").trim()) {
+    return [
+      {
+        ipfsCid: "",
+        contentUrl: String(product.contentUrl || "").trim(),
+        fileName: String(product.fileName || "").trim(),
+        mimeType: String(product.mimeType || "").trim(),
+      },
+    ];
+  }
+  return [];
+};
+
 const sanitizeAttachmentFileName = (name) => {
   const s = String(name || "download")
     .replace(/[/\\?%*:|"<>]/g, "_")
@@ -218,6 +268,17 @@ const createProductSchema = z
     encryptionAlgorithm: z.string().max(64).optional(),
     fileName: z.string().max(256).optional(),
     mimeType: z.string().max(128).optional(),
+    deliveryFiles: z
+      .array(
+        z.object({
+          ipfsCid: z.string().max(120).optional(),
+          contentUrl: z.string().url().optional(),
+          fileName: z.string().max(256).optional(),
+          mimeType: z.string().max(128).optional(),
+        }),
+      )
+      .max(10)
+      .optional(),
     coverUrl: z.string().max(12_000_000).optional(),
     thumbnailUrl: z.string().max(12_000_000).optional(),
     contentHash: z.string().max(128).optional(),
@@ -242,7 +303,8 @@ const createProductSchema = z
     (d) => {
       const mode = d.deliveryMode ?? "direct";
       if (mode === "ipfs_encrypted") {
-        return Boolean(d.ipfsCid?.trim()) && Boolean(d.encryptedContentKey?.trim());
+        const hasFiles = Array.isArray(d.deliveryFiles) && d.deliveryFiles.length > 0;
+        return (hasFiles || Boolean(d.ipfsCid?.trim())) && Boolean(d.encryptedContentKey?.trim());
       }
       return Boolean(d.contentUrl?.trim());
     },
@@ -267,6 +329,17 @@ const updateProductSchema = z
     encryptionAlgorithm: z.string().max(64).optional(),
     fileName: z.string().max(256).optional(),
     mimeType: z.string().max(128).optional(),
+    deliveryFiles: z
+      .array(
+        z.object({
+          ipfsCid: z.string().max(120).optional(),
+          contentUrl: z.string().url().optional(),
+          fileName: z.string().max(256).optional(),
+          mimeType: z.string().max(128).optional(),
+        }),
+      )
+      .max(10)
+      .optional(),
     coverUrl: z.string().max(12_000_000).optional(),
     thumbnailUrl: z.string().max(12_000_000).optional(),
     contentHash: z.string().max(128).optional(),
@@ -291,7 +364,8 @@ const updateProductSchema = z
     (d) => {
       const mode = d.deliveryMode ?? "direct";
       if (mode === "ipfs_encrypted") {
-        return Boolean(d.ipfsCid?.trim()) && Boolean(d.encryptedContentKey?.trim());
+        const hasFiles = Array.isArray(d.deliveryFiles) && d.deliveryFiles.length > 0;
+        return (hasFiles || Boolean(d.ipfsCid?.trim())) && Boolean(d.encryptedContentKey?.trim());
       }
       return Boolean(d.contentUrl?.trim());
     },
@@ -515,6 +589,7 @@ export function createApp() {
         encryptionAlgorithm: parsed.encryptionAlgorithm ?? "aes-256-gcm",
         fileName: parsed.fileName ?? "",
         mimeType: parsed.mimeType ?? "",
+        deliveryFiles: normalizeDeliveryFiles(parsed.deliveryFiles),
         summary: parsed.summary ?? "",
         coverUrl: parsed.coverUrl ?? "",
         thumbnailUrl: parsed.thumbnailUrl ?? "",
@@ -569,6 +644,7 @@ export function createApp() {
         encryptionAlgorithm: req.body.encryptionAlgorithm ?? product.encryptionAlgorithm ?? "aes-256-gcm",
         fileName: req.body.fileName ?? product.fileName ?? "",
         mimeType: req.body.mimeType ?? product.mimeType ?? "",
+        deliveryFiles: req.body.deliveryFiles ?? product.deliveryFiles ?? [],
         coverUrl: req.body.coverUrl ?? product.coverUrl ?? "",
         thumbnailUrl: req.body.thumbnailUrl ?? product.thumbnailUrl ?? "",
         contentHash: req.body.contentHash ?? product.contentHash ?? "",
@@ -603,6 +679,7 @@ export function createApp() {
       product.encryptionAlgorithm = parsed.encryptionAlgorithm ?? "aes-256-gcm";
       product.fileName = parsed.fileName ?? "";
       product.mimeType = parsed.mimeType ?? "";
+      product.deliveryFiles = normalizeDeliveryFiles(parsed.deliveryFiles);
       product.coverUrl = parsed.coverUrl ?? "";
       product.thumbnailUrl = parsed.thumbnailUrl ?? parsed.coverUrl ?? "";
       product.contentHash = parsed.contentHash ?? "";
@@ -779,26 +856,41 @@ export function createApp() {
     if (!Array.isArray(files) || files.length === 0) {
       return res.status(400).json({ message: "A file is required." });
     }
-    if (files.length > 1) {
-      return res.status(400).json({ message: "Only one file can be uploaded per product." });
-    }
-
     try {
-      const primary = files[0];
-      const result = await ipfs.add(primary.buffer);
-      const ipfsCid = result.cid.toString();
+      const uploadedFiles = [];
+      for (const file of files) {
+        const result = await ipfs.add(file.buffer);
+        uploadedFiles.push({
+          ipfsCid: result.cid.toString(),
+          fileName: file.originalname || "download.bin",
+          mimeType: file.mimetype || "application/octet-stream",
+        });
+      }
+      const primary = uploadedFiles[0];
+      const ipfsCid = primary.ipfsCid;
       const encryptedContentKey = crypto.randomBytes(48).toString("base64");
-      const { downloadUrl, backupUrl } = buildIpfsUrls(ipfsCid);
+      const primaryUrls = buildIpfsUrls(ipfsCid);
+      const deliveryFiles = uploadedFiles.map((f) => {
+        const urls = buildIpfsUrls(f.ipfsCid);
+        return {
+          ipfsCid: f.ipfsCid,
+          fileName: f.fileName,
+          mimeType: f.mimeType,
+          downloadUrl: urls.downloadUrl,
+          backupUrl: urls.backupUrl,
+        };
+      });
 
       return res.json({
         deliveryMode: "ipfs_encrypted",
         ipfsCid,
-        downloadUrl,
-        backupUrl,
+        downloadUrl: primaryUrls.downloadUrl,
+        backupUrl: primaryUrls.backupUrl,
         encryptedContentKey,
         encryptionAlgorithm: "aes-256-gcm",
-        fileName: primary.originalname || "download.bin",
-        mimeType: primary.mimetype || "application/octet-stream",
+        fileName: primary.fileName,
+        mimeType: primary.mimeType,
+        files: deliveryFiles,
       });
     } catch (error) {
       console.error("IPFS upload failed", error);
@@ -814,16 +906,27 @@ export function createApp() {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
     if ((product.deliveryMode || "direct") === "ipfs_encrypted") {
-      const { downloadUrl, backupUrl } = buildIpfsUrls(product.ipfsCid || "");
+      const files = getDeliveryFilesForProduct(product).map((file) => {
+        const urls = buildIpfsUrls(file.ipfsCid || "");
+        return {
+          ipfsCid: file.ipfsCid || "",
+          downloadUrl: urls.downloadUrl,
+          backupUrl: urls.backupUrl,
+          fileName: file.fileName || buildBuyerFileName(product),
+          mimeType: file.mimeType || "application/octet-stream",
+        };
+      });
+      const first = files[0] || null;
       return res.json({
         mode: "ipfs_encrypted",
-        ipfsCid: product.ipfsCid || "",
-        downloadUrl,
-        backupUrl,
+        ipfsCid: first?.ipfsCid || product.ipfsCid || "",
+        downloadUrl: first?.downloadUrl || "",
+        backupUrl: first?.backupUrl || "",
         encryptedContentKey: product.encryptedContentKey || "",
         encryptionAlgorithm: product.encryptionAlgorithm || "aes-256-gcm",
-        fileName: buildBuyerFileName(product),
-        mimeType: product.mimeType || "application/octet-stream",
+        fileName: first?.fileName || buildBuyerFileName(product),
+        mimeType: first?.mimeType || "application/octet-stream",
+        files,
       });
     }
     return res.json({
@@ -840,6 +943,8 @@ export function createApp() {
    * Registered at /api/... (normal) and /access/... (VITE_API_URL without /api, some proxies, Vercel path quirks).
    */
   const servePurchasedDownload = async (req, res) => {
+    const fileIndexRaw = Number(req.query.fileIndex ?? "0");
+    const fileIndex = Number.isFinite(fileIndexRaw) ? Math.max(0, Math.floor(fileIndexRaw)) : 0;
     const productId = String(req.query.productId || "");
     const buyerWallet = String(req.query.buyerWallet || "");
     if (!productId || !buyerWallet) {
@@ -850,12 +955,24 @@ export function createApp() {
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    const attachmentName = buildBuyerFileName(product);
+    const productFiles = getDeliveryFilesForProduct(product);
+    const selectedFile = productFiles[fileIndex] || productFiles[0] || null;
+    const attachmentName = selectedFile?.fileName || buildBuyerFileName(product);
     const disposition = contentDispositionAttachment(attachmentName);
-    const fallbackMime = product.mimeType || "application/octet-stream";
+    const fallbackMime = selectedFile?.mimeType || product.mimeType || "application/octet-stream";
 
     try {
-      const upstream = await fetchUpstreamForProduct(product);
+      const mode = product.deliveryMode || "direct";
+      const fileToFetch =
+        selectedFile ||
+        (mode === "ipfs_encrypted"
+          ? { ipfsCid: product.ipfsCid || "", contentUrl: "", fileName: "", mimeType: product.mimeType || "" }
+          : { ipfsCid: "", contentUrl: product.contentUrl || "", fileName: "", mimeType: product.mimeType || "" });
+      const upstream = await fetchUpstreamForProduct({
+        ...product.toObject(),
+        ipfsCid: fileToFetch.ipfsCid || "",
+        contentUrl: fileToFetch.contentUrl || "",
+      });
       if (!upstream) {
         return res.status(502).json({ message: "Could not fetch file for download" });
       }

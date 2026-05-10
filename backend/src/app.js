@@ -15,7 +15,13 @@ const RIPPLE_FEE_WALLET = process.env.RIPPLE_FEE_WALLET || "G6DKYcQnySUk1ZYYuR1H
 const IPFS_HOST = process.env.IPFS_API_HOST || "127.0.0.1";
 const IPFS_PORT = Number(process.env.IPFS_API_PORT || 5001);
 const IPFS_PROTOCOL = process.env.IPFS_API_PROTOCOL || "http";
-const IPFS_GATEWAY_URL = process.env.IPFS_GATEWAY_URL || "http://127.0.0.1:8081/ipfs";
+const PINATA_JWT = process.env.PINATA_JWT || "";
+const PINATA_API_KEY = process.env.PINATA_API_KEY || "";
+const PINATA_API_SECRET = process.env.PINATA_API_SECRET || process.env.PINATA_SECRET_API_KEY || "";
+const USE_PINATA = Boolean(PINATA_JWT || (PINATA_API_KEY && PINATA_API_SECRET));
+const IPFS_GATEWAY_URL =
+  process.env.IPFS_GATEWAY_URL ||
+  (USE_PINATA ? "https://gateway.pinata.cloud/ipfs" : "http://127.0.0.1:8081/ipfs");
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
@@ -24,11 +30,17 @@ const AUDD_MINT = process.env.AUDD_MINT_ADDRESS || "<AUDD_MINT_ADDRESS>";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-const ipfs = create({
-  host: IPFS_HOST,
-  port: IPFS_PORT,
-  protocol: IPFS_PROTOCOL,
-});
+let ipfsClient = null;
+function getLocalIpfs() {
+  if (!ipfsClient) {
+    ipfsClient = create({
+      host: IPFS_HOST,
+      port: IPFS_PORT,
+      protocol: IPFS_PROTOCOL,
+    });
+  }
+  return ipfsClient;
+}
 
 let mongoConnectPromise = null;
 
@@ -140,6 +152,75 @@ const buildIpfsUrls = (cid) => ({
   downloadUrl: `${IPFS_GATEWAY_URL}/${cid}`,
   backupUrl: `${IPFS_GATEWAY_FALLBACK_URL}/${cid}`,
 });
+
+const isLocalIpfsHost = () =>
+  IPFS_HOST === "127.0.0.1" || IPFS_HOST === "localhost" || IPFS_HOST === "::1";
+
+async function pinataJwtUpload(buffer, fileName, mimeType) {
+  const formData = new FormData();
+  const file = new File([buffer], fileName || "file.bin", {
+    type: mimeType || "application/octet-stream",
+  });
+  formData.append("file", file);
+  formData.append("network", "public");
+  const res = await fetch("https://uploads.pinata.cloud/v3/files", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${PINATA_JWT}` },
+    body: formData,
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Pinata upload failed (${res.status}): ${text.slice(0, 400)}`);
+  }
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Pinata: invalid response`);
+  }
+  const cid = json.data?.cid ?? json.cid;
+  if (!cid) throw new Error("Pinata: missing cid in response");
+  return String(cid);
+}
+
+async function pinataLegacyUpload(buffer, fileName, mimeType) {
+  const formData = new FormData();
+  const blob = new Blob([buffer], { type: mimeType || "application/octet-stream" });
+  formData.append("file", blob, fileName || "file.bin");
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+    method: "POST",
+    headers: {
+      pinata_api_key: PINATA_API_KEY,
+      pinata_secret_api_key: PINATA_API_SECRET,
+    },
+    body: formData,
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Pinata legacy upload failed (${res.status}): ${text.slice(0, 400)}`);
+  }
+  const json = JSON.parse(text);
+  const cid = json.IpfsHash;
+  if (!cid) throw new Error("Pinata: missing IpfsHash in response");
+  return String(cid);
+}
+
+/** Upload bytes to IPFS: Pinata (if configured), else local kubo API. */
+async function addBufferToIpfs(buffer, fileName, mimeType) {
+  if (PINATA_JWT) {
+    return pinataJwtUpload(buffer, fileName, mimeType);
+  }
+  if (PINATA_API_KEY && PINATA_API_SECRET) {
+    return pinataLegacyUpload(buffer, fileName, mimeType);
+  }
+  if (process.env.VERCEL && isLocalIpfsHost()) {
+    const err = new Error("VERCEL_IPFS_NOT_CONFIGURED");
+    err.code = "VERCEL_IPFS_NOT_CONFIGURED";
+    throw err;
+  }
+  const result = await getLocalIpfs().add(buffer);
+  return result.cid.toString();
+}
 
 const deriveAtaAddress = (ownerAddress, mintAddress) => {
   const owner = new PublicKey(ownerAddress);
@@ -859,9 +940,13 @@ export function createApp() {
     try {
       const uploadedFiles = [];
       for (const file of files) {
-        const result = await ipfs.add(file.buffer);
+        const ipfsCid = await addBufferToIpfs(
+          file.buffer,
+          file.originalname || "download.bin",
+          file.mimetype || "application/octet-stream",
+        );
         uploadedFiles.push({
-          ipfsCid: result.cid.toString(),
+          ipfsCid,
           fileName: file.originalname || "download.bin",
           mimeType: file.mimetype || "application/octet-stream",
         });
@@ -894,7 +979,19 @@ export function createApp() {
       });
     } catch (error) {
       console.error("IPFS upload failed", error);
-      return res.status(500).json({ message: "Failed to upload file to IPFS." });
+      if (error?.code === "VERCEL_IPFS_NOT_CONFIGURED") {
+        return res.status(503).json({
+          message:
+            "File upload is not configured for this host. In Vercel project settings add PINATA_JWT (Pinata → API Keys → JWT), or set IPFS_API_HOST to a reachable IPFS HTTP API. Optionally set IPFS_GATEWAY_URL to your Pinata gateway.",
+        });
+      }
+      const hint =
+        process.env.VERCEL && !USE_PINATA
+          ? " On Vercel, set PINATA_JWT or Pinata API key/secret, or point IPFS_API_HOST at a public IPFS API."
+          : "";
+      return res.status(500).json({
+        message: `Failed to upload file to IPFS.${hint}`,
+      });
     }
   });
 

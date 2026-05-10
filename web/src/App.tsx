@@ -468,7 +468,6 @@ function ProductPage() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [checkoutWarning, setCheckoutWarning] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
   const networkLabel = useMemo(() => {
     const endpoint = (connection.rpcEndpoint || "").toLowerCase();
@@ -520,45 +519,11 @@ function ProductPage() {
     }
   }, [product, wallet]);
 
-  const getUmbraMintAndAmount = (p: Product) => {
-    const currency = p.currency ?? "PUSD";
-    if (currency === "PUSD") {
-      return { currency, mintAddress: TOKENS.PUSD.mint, amount: p.price ?? 0 };
-    }
-    if (currency === "USDC") {
-      return {
-        currency,
-        mintAddress: TOKENS.USDC.mint,
-        amount: Math.round((p.priceUsdc ?? 0) * 10 ** TOKENS.USDC.decimals),
-      };
-    }
-    if (currency === "USDT") {
-      return {
-        currency,
-        mintAddress: TOKENS.USDT.mint,
-        amount: Math.round((p.priceUsdt ?? 0) * 10 ** TOKENS.USDT.decimals),
-      };
-    }
-    if (currency === "AUDD") {
-      return {
-        currency,
-        mintAddress: TOKENS.AUDD.mint,
-        amount: Math.round((p.priceAudd ?? 0) * 10 ** TOKENS.AUDD.decimals),
-      };
-    }
-    return {
-      currency: "SOL" as const,
-      mintAddress: TOKENS.SOL.mint,
-      amount: Math.round((p.priceSol ?? 0) * 10 ** TOKENS.SOL.decimals),
-    };
-  };
-
   const buy = async () => {
     if (!product) return;
     setError("");
     setStatus("");
     setTxSignature("");
-    setCheckoutWarning("");
 
     if (!publicKey) {
       setError("Connect your wallet first (header or wallet button).");
@@ -569,93 +534,69 @@ function ProductPage() {
     try {
       const buyerWallet = publicKey.toBase58();
       const creatorAddress = product.payoutWallet || product.creatorWallet;
-      const creatorUmbraReadinessKnownFalse = product.umbraReady === false;
-      const payment = getUmbraMintAndAmount(product);
-      if (!Number.isFinite(payment.amount) || payment.amount <= 0) {
-        throw new Error(`Invalid ${payment.currency} price for this product.`);
+      const cur = product.currency ?? "PUSD";
+      if (cur === "PUSD" && (!product.price || product.price <= 0)) {
+        throw new Error("Invalid PUSD price for this product.");
       }
-      let signature = "";
-      let usedPrivateRail = false;
-      let privateRailError = "";
+      if (cur === "SOL" && (!Number.isFinite(product.priceSol) || (product.priceSol ?? 0) <= 0)) {
+        throw new Error("Invalid SOL price for this product.");
+      }
+      if (cur === "USDT" && (product.priceUsdt ?? 0) <= 0) {
+        throw new Error("Invalid USDT price for this product.");
+      }
+      if (cur === "USDC" && (product.priceUsdc ?? 0) <= 0) {
+        throw new Error("Invalid USDC price for this product.");
+      }
+      if (cur === "AUDD" && (product.priceAudd ?? 0) <= 0) {
+        throw new Error("Invalid AUDD price for this product.");
+      }
 
-      try {
-        if (creatorUmbraReadinessKnownFalse) {
-          setStatus("Creator Umbra readiness is unconfirmed. Trying private checkout anyway...");
-        }
-        setStatus("Preparing Umbra private checkout...");
-        setStatus("Awaiting wallet approval...");
-        const { ensureUmbraPrivatePayoutReady, handleUmbraPrivatePayment } = await import("./lib/umbraPayment");
-        await ensureUmbraPrivatePayoutReady({
+      setStatus("Awaiting wallet approval...");
+      let signature = "";
+      if (cur === "SOL") {
+        const { handlePayment } = await import("./lib/payment");
+        signature = await handlePayment({
           connection,
-          wallet: { publicKey },
+          wallet: { publicKey, sendTransaction },
+          productPriceSol: product.priceSol ?? 0,
+          creatorAddress,
         });
-        signature = await handleUmbraPrivatePayment({
+      } else if (cur === "PUSD") {
+        const { handleTokenPayment } = await import("./lib/tokenPayment");
+        signature = await handleTokenPayment({
           connection,
-          wallet: { publicKey },
-          recipientAddress: creatorAddress,
-          mintAddress: payment.mintAddress,
-          amount: payment.amount,
+          wallet: { publicKey, sendTransaction },
+          mintAddress: TOKENS.PUSD.mint,
+          amount: Math.round(product.price ?? 0),
+          creatorAddress,
         });
-        usedPrivateRail = true;
-      } catch (privateError) {
-        privateRailError =
-          privateError instanceof Error ? privateError.message : String(privateError);
-        setStatus("Private checkout failed. Falling back to standard on-chain payment...");
-        setCheckoutWarning(
-          `Umbra private checkout failed and we used a fallback on-chain payment. Reason: ${privateRailError}`,
-        );
-        if ((product.currency ?? "PUSD") === "SOL") {
-          const { handlePayment } = await import("./lib/payment");
-          signature = await handlePayment({
-            connection,
-            wallet: { publicKey, sendTransaction },
-            productPriceSol: product.priceSol ?? 0,
-            creatorAddress,
-          });
-        } else if ((product.currency ?? "PUSD") === "PUSD") {
-          const { handleTokenPayment } = await import("./lib/tokenPayment");
-          signature = await handleTokenPayment({
-            connection,
-            wallet: { publicKey, sendTransaction },
-            mintAddress: TOKENS.PUSD.mint,
-            amount: Math.round(product.price ?? 0),
-            creatorAddress,
-          });
-        } else if (
-          (product.currency ?? "PUSD") === "USDT" ||
-          (product.currency ?? "PUSD") === "USDC" ||
-          (product.currency ?? "PUSD") === "AUDD"
-        ) {
-          const { handleTokenPayment } = await import("./lib/tokenPayment");
-          const cur = product.currency ?? "PUSD";
-          const tokenCfg =
-            cur === "USDT"
-              ? { mint: TOKENS.USDT.mint, human: product.priceUsdt ?? 0, decimals: TOKENS.USDT.decimals }
-              : cur === "USDC"
-                ? { mint: TOKENS.USDC.mint, human: product.priceUsdc ?? 0, decimals: TOKENS.USDC.decimals }
-                : { mint: TOKENS.AUDD.mint, human: product.priceAudd ?? 0, decimals: TOKENS.AUDD.decimals };
-          signature = await handleTokenPayment({
-            connection,
-            wallet: { publicKey, sendTransaction },
-            mintAddress: tokenCfg.mint,
-            amount: Math.round(tokenCfg.human * 10 ** tokenCfg.decimals),
-            creatorAddress,
-          });
-        } else {
-          throw new Error(
-            `${privateRailError}. Fallback is not supported for this listing currency.`,
-          );
-        }
+      } else if (cur === "USDT" || cur === "USDC" || cur === "AUDD") {
+        const { handleTokenPayment } = await import("./lib/tokenPayment");
+        const tokenCfg =
+          cur === "USDT"
+            ? { mint: TOKENS.USDT.mint, human: product.priceUsdt ?? 0, decimals: TOKENS.USDT.decimals }
+            : cur === "USDC"
+              ? { mint: TOKENS.USDC.mint, human: product.priceUsdc ?? 0, decimals: TOKENS.USDC.decimals }
+              : { mint: TOKENS.AUDD.mint, human: product.priceAudd ?? 0, decimals: TOKENS.AUDD.decimals };
+        signature = await handleTokenPayment({
+          connection,
+          wallet: { publicKey, sendTransaction },
+          mintAddress: tokenCfg.mint,
+          amount: Math.round(tokenCfg.human * 10 ** tokenCfg.decimals),
+          creatorAddress,
+        });
+      } else {
+        throw new Error(`Unsupported currency: ${cur}`);
       }
 
       setTxSignature(signature);
-      setStatus(usedPrivateRail ? "Verifying Umbra payment..." : "Verifying on-chain payment...");
+      setStatus("Verifying on-chain payment...");
       await api.post("/purchases/verify", {
         productId: product._id,
         buyerWallet,
         txSignature: signature,
         currency: product.currency ?? "PUSD",
-        paymentMode: usedPrivateRail ? "private" : "public",
+        paymentMode: "public",
       });
 
       setStatus("Unlocking content...");
@@ -757,24 +698,6 @@ function ProductPage() {
             </div>
 
             <div className="product-public-actions">
-              {!accessPayload ? (
-                <div className="product-public-mode">
-                  <div className="product-public-mode__label">
-                    {product.umbraReady === false
-                      ? "Umbra private checkout needs creator setup"
-                      : "Umbra private checkout enabled"}
-                  </div>
-                  <div className="product-public-mode__row">
-                    <div className="product-public-mode__option product-public-mode__option--active">
-                      <span>
-                        {product.umbraReady === false
-                          ? "Private payment (Umbra) - setup pending"
-                          : "Private payment (Umbra)"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
               {!accessPayload && (
                 <button className="btn btn-outline" type="button">
                   Add to cart
@@ -802,10 +725,6 @@ function ProductPage() {
                 {error}
               </div>
             ) : null}
-            {checkoutWarning && !error ? (
-              <div className="product-public-toast product-public-toast--info">{checkoutWarning}</div>
-            ) : null}
-
             {accessPayload ? (
               <div className="product-public-unlock product-public-unlock--hero">
                 <div className="product-public-unlock__head">

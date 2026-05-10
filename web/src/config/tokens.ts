@@ -30,7 +30,7 @@ export const TOKENS: RuntimeTokens = {
   },
   SOL: {
     symbol: "SOL",
-    // Umbra operates on token mints; use wrapped SOL mint for SOL-priced private checkout.
+    // Wrapped SOL mint for SPL-style amounts where the UI lists SOL as the currency.
     mint: import.meta.env.VITE_WSOL_MINT_ADDRESS || "So11111111111111111111111111111111111111112",
     decimals: 9,
   },

@@ -7,7 +7,7 @@ import { readFileAsDataUrl } from "../../lib/productUtils";
 import { PriceFieldLabel, ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import { productPublicUrl } from "../../lib/productUtils";
 import { CRYPTO_OPTIONS, type ProductCurrency } from "../../lib/productUtils";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
 
@@ -27,14 +27,12 @@ const SERVICE_TYPES = [
 
 export function DashboardNewProductPage() {
   const navigate = useNavigate();
-  const { connection } = useConnection();
   const { publicKey } = useWallet();
   const wallet = publicKey?.toBase58() ?? "";
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [publishNotice, setPublishNotice] = useState("");
   const [createdProduct, setCreatedProduct] = useState<ProductShape | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [copied, setCopied] = useState(false);
@@ -83,27 +81,10 @@ export function DashboardNewProductPage() {
     }
     setSubmitting(true);
     setError("");
-    setPublishNotice("");
     const price = Number(draft.priceAmount);
     const smallestUnitPrice =
       draft.currency === "PUSD" ? Math.round(price * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
-      // Best-effort Umbra readiness: do not block product creation on setup simulation issues.
-      let umbraReady = false;
-      try {
-        const { ensureUmbraPrivatePayoutReady } = await import("../../lib/umbraPayment");
-        await ensureUmbraPrivatePayoutReady({
-          connection,
-          wallet: { publicKey },
-        });
-        umbraReady = true;
-      } catch (umbraError) {
-        const detail = umbraError instanceof Error ? umbraError.message : "Umbra setup failed.";
-        setPublishNotice(
-          `Product created, but private checkout is not ready yet. Reason: ${detail} You can still share the listing and retry checkout setup later.`,
-        );
-      }
-
       const fd = new FormData();
       files.forEach((f) => fd.append("files", f));
       const uploadRes = await api.post<{
@@ -121,7 +102,8 @@ export function DashboardNewProductPage() {
 
       const { data } = await api.post<ProductShape>("/products", {
         title: draft.name.trim(),
-        description: draft.description.trim(),        productInfo: draft.productInfo.trim() || undefined,
+        description: draft.description.trim(),
+        productInfo: draft.productInfo.trim() || undefined,
         deliveryMode: uploadRes.data.deliveryMode,
         ipfsCid: uploadRes.data.ipfsCid,
         encryptedContentKey: uploadRes.data.encryptedContentKey,
@@ -138,7 +120,6 @@ export function DashboardNewProductPage() {
         priceUsdt: draft.currency === "USDT" ? price : 0,
         priceAudd: draft.currency === "AUDD" ? price : 0,
         productType: draft.productType,
-        umbraReady,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,
         status: "draft",
@@ -648,7 +629,6 @@ export function DashboardNewProductPage() {
               Return to products
             </Link>
           </div>
-          {publishNotice ? <div className="dash-alert" style={{ marginTop: "12px" }}>{publishNotice}</div> : null}
         </div>
       ) : null}
     </div>

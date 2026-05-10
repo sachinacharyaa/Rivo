@@ -6,7 +6,6 @@ export type ProductShape = {
   summary?: string;
   productInfo?: string;
   productType?: string;
-  umbraReady?: boolean;
   deliveryMode?: "direct" | "ipfs_encrypted";
   ipfsCid?: string;
   encryptedContentKey?: string;

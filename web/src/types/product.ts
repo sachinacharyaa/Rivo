@@ -12,6 +12,12 @@ export type ProductShape = {
   encryptionAlgorithm?: string;
   fileName?: string;
   mimeType?: string;
+  deliveryFiles?: {
+    ipfsCid?: string;
+    contentUrl?: string;
+    fileName?: string;
+    mimeType?: string;
+  }[];
   status?: "draft" | "published";
   price?: number;
   priceSol: number;

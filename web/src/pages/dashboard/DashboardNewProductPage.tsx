@@ -96,6 +96,13 @@ export function DashboardNewProductPage() {
         encryptionAlgorithm: string;
         fileName: string;
         mimeType: string;
+        files: {
+          ipfsCid: string;
+          downloadUrl: string;
+          backupUrl: string;
+          fileName: string;
+          mimeType: string;
+        }[];
       }>("/digital-products/upload", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -110,6 +117,12 @@ export function DashboardNewProductPage() {
         encryptionAlgorithm: uploadRes.data.encryptionAlgorithm,
         fileName: uploadRes.data.fileName,
         mimeType: uploadRes.data.mimeType,
+        deliveryFiles: (uploadRes.data.files || []).map((file) => ({
+          ipfsCid: file.ipfsCid,
+          contentUrl: file.downloadUrl || file.backupUrl,
+          fileName: file.fileName,
+          mimeType: file.mimeType,
+        })),
         contentUrl: uploadRes.data.downloadUrl || uploadRes.data.backupUrl,
         coverUrl: draft.coverUrl || undefined,
         thumbnailUrl: draft.coverUrl || undefined,
@@ -157,9 +170,8 @@ export function DashboardNewProductPage() {
 
   const appendFiles = (incoming: FileList | null) => {
     if (!incoming?.length) return;
-    const firstFile = incoming[0];
-    if (!firstFile) return;
-    setFiles([firstFile]);
+    const picked = Array.from(incoming);
+    setFiles((prev) => [...prev, ...picked].slice(0, 10));
   };
 
   const onDropFiles = (e: DragEvent<HTMLLabelElement>) => {
@@ -562,7 +574,9 @@ export function DashboardNewProductPage() {
                         <button
                           type="button"
                           className="gum-btn gum-btn--ghost"
-                          onClick={() => setFiles([])}
+                          onClick={() =>
+                            setFiles((prev) => prev.filter((_, fileIdx) => fileIdx !== idx))
+                          }
                           aria-label={`Remove ${f.name}`}
                         >
                           Remove

@@ -27,8 +27,16 @@ import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
 
 type Product = ProductShape;
+type AccessFile = {
+  ipfsCid?: string;
+  contentUrl?: string;
+  downloadUrl?: string;
+  backupUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+};
 type AccessPayload =
-  | { mode: "direct"; contentUrl: string; fileName?: string; mimeType?: string }
+  | { mode: "direct"; contentUrl: string; fileName?: string; mimeType?: string; files?: AccessFile[] }
   | {
       mode: "ipfs_encrypted";
       ipfsCid: string;
@@ -38,6 +46,7 @@ type AccessPayload =
       encryptionAlgorithm?: string;
       fileName?: string;
       mimeType?: string;
+      files?: AccessFile[];
     };
 
 function Coins() {
@@ -505,19 +514,19 @@ function ProductPage() {
       .catch(() => undefined);
   }, [product, wallet]);
 
-  const verifiedDownloadHref = useMemo(() => {
+  const makeVerifiedDownloadHref = (fileIndex = 0) => {
     if (!product || !wallet) return "";
     if (!api.defaults.baseURL) return "";
     try {
       return axios.getUri({
         baseURL: api.defaults.baseURL,
         url: "/access/download-file",
-        params: { productId: product._id, buyerWallet: wallet },
+        params: { productId: product._id, buyerWallet: wallet, fileIndex },
       });
     } catch {
       return "";
     }
-  }, [product, wallet]);
+  };
 
   const buy = async () => {
     if (!product) return;
@@ -645,17 +654,30 @@ function ProductPage() {
     ? `https://explorer.solana.com/tx/${txSignature}?cluster=${networkLabel}`
     : "";
 
-  const rawFileHref =
-    accessPayload?.mode === "direct"
-      ? accessPayload.contentUrl
-      : accessPayload?.mode === "ipfs_encrypted"
-        ? accessPayload.downloadUrl ||
-          accessPayload.backupUrl ||
-          (accessPayload.ipfsCid ? `https://ipfs.io/ipfs/${accessPayload.ipfsCid}` : "")
-        : "";
-
-  const downloadHref = verifiedDownloadHref || rawFileHref;
-  const downloadName = accessPayload?.fileName || product.title;
+  const unlockFiles: AccessFile[] = useMemo(() => {
+    if (!accessPayload) return [];
+    if (Array.isArray(accessPayload.files) && accessPayload.files.length > 0) {
+      return accessPayload.files;
+    }
+    if (accessPayload.mode === "direct") {
+      return [
+        {
+          contentUrl: accessPayload.contentUrl,
+          fileName: accessPayload.fileName,
+          mimeType: accessPayload.mimeType,
+        },
+      ];
+    }
+    return [
+      {
+        ipfsCid: accessPayload.ipfsCid,
+        downloadUrl: accessPayload.downloadUrl,
+        backupUrl: accessPayload.backupUrl,
+        fileName: accessPayload.fileName,
+        mimeType: accessPayload.mimeType,
+      },
+    ];
+  }, [accessPayload]);
 
   return (
     <Layout>
@@ -746,25 +768,27 @@ function ProductPage() {
                   ) : null}
                 </div>
                 <div className="product-public-unlock__actions">
-                  {accessPayload.mode === "direct" ? (
-                    <a
-                      className="btn btn-secondary"
-                      href={downloadHref || "#"}
-                      download={downloadName}
-                      rel="noreferrer"
-                    >
-                      Download file
-                    </a>
-                  ) : (
-                    <a
-                      className="btn btn-secondary"
-                      href={downloadHref || "#"}
-                      download={downloadName}
-                      rel="noreferrer"
-                    >
-                      Download file
-                    </a>
-                  )}
+                  {unlockFiles.map((file, idx) => {
+                    const rawHref =
+                      file.contentUrl ||
+                      file.downloadUrl ||
+                      file.backupUrl ||
+                      (file.ipfsCid ? `https://ipfs.io/ipfs/${file.ipfsCid}` : "");
+                    const verifiedHref = makeVerifiedDownloadHref(idx);
+                    const downloadHref = verifiedHref || rawHref;
+                    const downloadName = file.fileName || `${product.title}-${idx + 1}`;
+                    return (
+                      <a
+                        key={`${downloadName}-${idx}`}
+                        className="btn btn-secondary"
+                        href={downloadHref || "#"}
+                        download={downloadName}
+                        rel="noreferrer"
+                      >
+                        Download {unlockFiles.length > 1 ? `file ${idx + 1}` : "file"}
+                      </a>
+                    );
+                  })}
                   {txSignature ? (
                     <a
                       className="btn btn-outline"

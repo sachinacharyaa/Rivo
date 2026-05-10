@@ -12,6 +12,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { api } from "./lib/api";
 import axios from "axios";
+import { isHiddenFromProductListings } from "./lib/hiddenProducts";
 import { productPublicPath } from "./lib/productUtils";
 import { ProductPriceWithLogo } from "./components/CurrencyPriceAssets";
 import { FormatProductDescription } from "./lib/richDescription";
@@ -380,7 +381,7 @@ function ProductsPage() {
   useEffect(() => {
     api
       .get("/products")
-      .then((res) => setProducts(res.data))
+      .then((res) => setProducts(res.data.filter((p) => !isHiddenFromProductListings(p))))
       .catch(() => setError("Unable to load marketplace products."))
       .finally(() => setLoading(false));
   }, []);

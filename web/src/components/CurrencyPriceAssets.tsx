@@ -6,6 +6,7 @@ import { formatProductPrice } from "../lib/productUtils";
 /** Static URLs under `public/assets/` */
 export const CURRENCY_LOGO_SRC: Partial<Record<ProductCurrency, string>> = {
   PUSD: "/assets/pusd-logo.png",
+  USDC: "/assets/usdc-logo.png",
   USDT: "/assets/usdt-logo.png",
   SOL: "/assets/sol-logo.png",
   AUDD: "/assets/audd-logo.png",

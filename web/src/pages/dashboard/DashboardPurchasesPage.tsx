@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
 import { api } from "../../lib/api";
+import { isHiddenFromProductListings } from "../../lib/hiddenProducts";
 import { formatTokenAmount, productPublicPath, SUPPORTED_CURRENCIES, type ProductCurrency } from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
 
@@ -79,14 +80,19 @@ export function DashboardPurchasesPage() {
       .finally(() => setLoading(false));
   }, [wallet]);
 
+  const visibleItems = useMemo(
+    () => items.filter((p) => !isHiddenFromProductListings(p.productId)),
+    [items],
+  );
+
   const totalSpent = useMemo(
     () =>
-      items.reduce<CurrencyTotals>((acc, p) => {
+      visibleItems.reduce<CurrencyTotals>((acc, p) => {
         const currency = purchaseCurrency(p);
         acc[currency] += purchaseAmount(p);
         return acc;
       }, emptyCurrencyTotals()),
-    [items],
+    [visibleItems],
   );
 
   if (!wallet) {
@@ -104,7 +110,7 @@ export function DashboardPurchasesPage() {
         <div className="gum-products-header__actions">
           <div className="gum-chip-row">
             <span className="gum-chip">
-              {items.length} purchase{items.length === 1 ? "" : "s"}
+              {visibleItems.length} purchase{visibleItems.length === 1 ? "" : "s"}
             </span>
             <span className="gum-chip gum-chip--muted">
               Total spent: <CurrencyTotalsInline totals={totalSpent} />
@@ -117,7 +123,7 @@ export function DashboardPurchasesPage() {
 
       {loading ? (
         <p className="gum-muted">Loading purchases…</p>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <div className="gum-empty">
           No purchases yet.{" "}
           <Link to="/dashboard/discover" className="gum-link">
@@ -138,7 +144,7 @@ export function DashboardPurchasesPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((p) => {
+              {visibleItems.map((p) => {
                 const product = p.productId;
                 const status =
                   p.status === "confirmed" ? "Confirmed" : p.status || "Pending";

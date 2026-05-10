@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { create } from "ipfs-http-client";
 import { verifySolTransfer, verifySplSplitTransfer } from "./verifyTransfer.js";
 import { Readable } from "node:stream";
+import path from "node:path";
 import { pipeline } from "node:stream/promises";
 
 const connection = new Connection(process.env.SOLANA_RPC || "https://api.devnet.solana.com", "confirmed");
@@ -15,13 +16,18 @@ const RIPPLE_FEE_WALLET = process.env.RIPPLE_FEE_WALLET || "G6DKYcQnySUk1ZYYuR1H
 const IPFS_HOST = process.env.IPFS_API_HOST || "127.0.0.1";
 const IPFS_PORT = Number(process.env.IPFS_API_PORT || 5001);
 const IPFS_PROTOCOL = process.env.IPFS_API_PROTOCOL || "http";
-const PINATA_JWT = process.env.PINATA_JWT || "";
-const PINATA_API_KEY = process.env.PINATA_API_KEY || "";
-const PINATA_API_SECRET = process.env.PINATA_API_SECRET || process.env.PINATA_SECRET_API_KEY || "";
-const USE_PINATA = Boolean(PINATA_JWT || (PINATA_API_KEY && PINATA_API_SECRET));
+const PINATA_JWT = String(process.env.PINATA_JWT || "").trim();
+const PINATA_API_KEY = String(process.env.PINATA_API_KEY || "").trim();
+const PINATA_API_SECRET = String(
+  process.env.PINATA_API_SECRET || process.env.PINATA_SECRET_API_KEY || "",
+).trim();
+/** When true, uploads use only your Kubo node (127.0.0.1 or IPFS_API_*). Ignores Pinata env — use for local dev without Pinata. */
+const IPFS_LOCAL_ONLY = /^1|true|yes$/i.test(String(process.env.IPFS_LOCAL_ONLY || "").trim());
+const USE_PINATA_UPLOAD =
+  !IPFS_LOCAL_ONLY && Boolean(PINATA_JWT || (PINATA_API_KEY && PINATA_API_SECRET));
 const IPFS_GATEWAY_URL =
   process.env.IPFS_GATEWAY_URL ||
-  (USE_PINATA ? "https://gateway.pinata.cloud/ipfs" : "http://127.0.0.1:8081/ipfs");
+  (USE_PINATA_UPLOAD ? "https://gateway.pinata.cloud/ipfs" : "http://127.0.0.1:8081/ipfs");
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
@@ -153,15 +159,20 @@ const buildIpfsUrls = (cid) => ({
   backupUrl: `${IPFS_GATEWAY_FALLBACK_URL}/${cid}`,
 });
 
+/** Strip path segments from multipart names (files only; no folder paths). */
+const uploadOriginalFileName = (originalname) => {
+  const base = path.basename(String(originalname || "").trim() || "download.bin");
+  if (!base || base === "." || base === "..") return "download.bin";
+  return base.slice(0, 256);
+};
+
 const isLocalIpfsHost = () =>
   IPFS_HOST === "127.0.0.1" || IPFS_HOST === "localhost" || IPFS_HOST === "::1";
 
 async function pinataJwtUpload(buffer, fileName, mimeType) {
   const formData = new FormData();
-  const file = new File([buffer], fileName || "file.bin", {
-    type: mimeType || "application/octet-stream",
-  });
-  formData.append("file", file);
+  const blob = new Blob([buffer], { type: mimeType || "application/octet-stream" });
+  formData.append("file", blob, fileName || "file.bin");
   formData.append("network", "public");
   const res = await fetch("https://uploads.pinata.cloud/v3/files", {
     method: "POST",
@@ -205,12 +216,10 @@ async function pinataLegacyUpload(buffer, fileName, mimeType) {
   return String(cid);
 }
 
-/** Upload bytes to IPFS: Pinata (if configured), else local kubo API. */
+/** Upload bytes to IPFS: Pinata (if configured and not IPFS_LOCAL_ONLY), else local Kubo API. */
 async function addBufferToIpfs(buffer, fileName, mimeType) {
-  if (PINATA_JWT) {
-    return pinataJwtUpload(buffer, fileName, mimeType);
-  }
-  if (PINATA_API_KEY && PINATA_API_SECRET) {
+  if (USE_PINATA_UPLOAD) {
+    if (PINATA_JWT) return pinataJwtUpload(buffer, fileName, mimeType);
     return pinataLegacyUpload(buffer, fileName, mimeType);
   }
   if (process.env.VERCEL && isLocalIpfsHost()) {
@@ -221,6 +230,101 @@ async function addBufferToIpfs(buffer, fileName, mimeType) {
   const result = await getLocalIpfs().add(buffer);
   return result.cid.toString();
 }
+
+/** Same response shape as POST /digital-products/upload (after files are already on IPFS). */
+function buildEncryptedDeliveryPayload(uploadedFiles) {
+  const primary = uploadedFiles[0];
+  const ipfsCid = primary.ipfsCid;
+  const encryptedContentKey = crypto.randomBytes(48).toString("base64");
+  const primaryUrls = buildIpfsUrls(ipfsCid);
+  const deliveryFiles = uploadedFiles.map((f) => {
+    const urls = buildIpfsUrls(f.ipfsCid);
+    return {
+      ipfsCid: f.ipfsCid,
+      fileName: f.fileName,
+      mimeType: f.mimeType,
+      downloadUrl: urls.downloadUrl,
+      backupUrl: urls.backupUrl,
+    };
+  });
+  return {
+    deliveryMode: "ipfs_encrypted",
+    ipfsCid,
+    downloadUrl: primaryUrls.downloadUrl,
+    backupUrl: primaryUrls.backupUrl,
+    encryptedContentKey,
+    encryptionAlgorithm: "aes-256-gcm",
+    fileName: primary.fileName,
+    mimeType: primary.mimeType,
+    files: deliveryFiles,
+  };
+}
+
+function formatIpfsUploadFailure(error) {
+  if (!error) {
+    return "Failed to upload file to IPFS. On localhost: run Kubo (`ipfs daemon`, API :5001). Use IPFS_LOCAL_ONLY=1 in backend/.env to force Kubo and ignore Pinata. For large files without local IPFS, use Pinata + VITE_PINATA_JWT.";
+  }
+  if (error.code === "VERCEL_IPFS_NOT_CONFIGURED") return null;
+  const msg = String(error.message || error || "").trim();
+  const msgLower = msg.toLowerCase();
+  const name = String(error.name || "");
+  const cause = error.cause;
+  const netCode = error.code || cause?.code;
+
+  /** Node/undici often throws `TypeError: fetch failed` with ECONNREFUSED on `error.cause`. */
+  const looksLikeFetchNetwork =
+    netCode === "ECONNREFUSED" ||
+    netCode === "ETIMEDOUT" ||
+    netCode === "ENOTFOUND" ||
+    netCode === "UND_ERR_CONNECT_TIMEOUT" ||
+    msgLower.includes("fetch failed") ||
+    msgLower.includes("failed to fetch") ||
+    msgLower.includes("econnrefused");
+
+  if (looksLikeFetchNetwork) {
+    if (USE_PINATA_UPLOAD) {
+      return `Could not reach Pinata or the network failed (${msg || netCode || "fetch failed"}). Check PINATA_JWT, firewall, and https://uploads.pinata.cloud availability.`;
+    }
+    const target = `${IPFS_PROTOCOL}://${IPFS_HOST}:${IPFS_PORT}`;
+    return `Cannot reach your local IPFS (Kubo) API at ${target}. (${msg || netCode || "connection failed"}). Start Kubo: run \`ipfs daemon\` in a terminal and wait until the API is listening (default port 5001). Match IPFS_API_HOST / IPFS_API_PORT in backend/.env to your node. This is a connection issue, not file size — VITE_PINATA_JWT will not fix a Kubo node that is not running.`;
+  }
+
+  if (
+    name === "RangeError" ||
+    msg.includes("heap") ||
+    msg.includes("allocation") ||
+    msg.includes("Array buffer allocation") ||
+    msg.includes("Cannot create a string longer than")
+  ) {
+    return "File is too large for the server to hold in RAM. Add VITE_PINATA_JWT to web/.env (same Pinata JWT as PINATA_JWT) so uploads go from your browser to Pinata instead of through localhost:4000.";
+  }
+
+  if (msg) {
+    const head = msg.length > 520 ? `${msg.slice(0, 520)}…` : msg;
+    if (process.env.VERCEL === "1") {
+      return `${head} — If this persists for large files, set VITE_PINATA_JWT on the frontend.`;
+    }
+    if (IPFS_LOCAL_ONLY || !USE_PINATA_UPLOAD) {
+      return `${head} — Using local Kubo: ensure \`ipfs daemon\` is running and ${IPFS_PROTOCOL}://${IPFS_HOST}:${IPFS_PORT} is reachable.`;
+    }
+    return `${head} — For very large uploads without buffering through this API, you can set VITE_PINATA_JWT in web/.env.`;
+  }
+
+  return "Failed to upload file to IPFS. Check backend logs. Local Kubo: IPFS_LOCAL_ONLY=1 and `ipfs daemon`. Hosted: Pinata + PINATA_JWT / VITE_PINATA_JWT.";
+}
+
+const registerIpfsFilesSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        ipfsCid: z.string().min(4).max(120),
+        fileName: z.string().max(256),
+        mimeType: z.string().max(128).optional(),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
 
 const deriveAtaAddress = (ownerAddress, mintAddress) => {
   const owner = new PublicKey(ownerAddress);
@@ -491,7 +595,33 @@ export function createApp() {
     }
   });
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  app.get("/api/health", async (_req, res) => {
+    const body = { ok: true };
+    if (USE_PINATA_UPLOAD) {
+      body.uploads = "pinata";
+    } else {
+      body.uploads = "kubo";
+      body.kuboApi = `${IPFS_PROTOCOL}://${IPFS_HOST}:${IPFS_PORT}`;
+      try {
+        const ac = new AbortController();
+        const to = setTimeout(() => ac.abort(), 2000);
+        const resp = await fetch(`${IPFS_PROTOCOL}://${IPFS_HOST}:${IPFS_PORT}/api/v0/version`, {
+          method: "POST",
+          signal: ac.signal,
+        });
+        clearTimeout(to);
+        body.kuboReachable = resp.ok;
+        if (!resp.ok) body.kuboError = `HTTP ${resp.status}`;
+      } catch (e) {
+        body.kuboReachable = false;
+        const code = e?.cause?.code || e?.code;
+        body.kuboError = code || e?.name || String(e.message || e).slice(0, 160);
+        body.kuboHint =
+          "Product uploads need Kubo running: `ipfs daemon` (API default :5001). Or use Pinata: set PINATA_JWT, remove IPFS_LOCAL_ONLY from backend/.env, optionally VITE_PINATA_JWT in web/.env.";
+      }
+    }
+    res.json(body);
+  });
 
   app.post("/api/analytics/track", async (req, res) => {
     try {
@@ -940,43 +1070,19 @@ export function createApp() {
     try {
       const uploadedFiles = [];
       for (const file of files) {
+        const safeName = uploadOriginalFileName(file.originalname);
         const ipfsCid = await addBufferToIpfs(
           file.buffer,
-          file.originalname || "download.bin",
+          safeName,
           file.mimetype || "application/octet-stream",
         );
         uploadedFiles.push({
           ipfsCid,
-          fileName: file.originalname || "download.bin",
+          fileName: safeName,
           mimeType: file.mimetype || "application/octet-stream",
         });
       }
-      const primary = uploadedFiles[0];
-      const ipfsCid = primary.ipfsCid;
-      const encryptedContentKey = crypto.randomBytes(48).toString("base64");
-      const primaryUrls = buildIpfsUrls(ipfsCid);
-      const deliveryFiles = uploadedFiles.map((f) => {
-        const urls = buildIpfsUrls(f.ipfsCid);
-        return {
-          ipfsCid: f.ipfsCid,
-          fileName: f.fileName,
-          mimeType: f.mimeType,
-          downloadUrl: urls.downloadUrl,
-          backupUrl: urls.backupUrl,
-        };
-      });
-
-      return res.json({
-        deliveryMode: "ipfs_encrypted",
-        ipfsCid,
-        downloadUrl: primaryUrls.downloadUrl,
-        backupUrl: primaryUrls.backupUrl,
-        encryptedContentKey,
-        encryptionAlgorithm: "aes-256-gcm",
-        fileName: primary.fileName,
-        mimeType: primary.mimeType,
-        files: deliveryFiles,
-      });
+      return res.json(buildEncryptedDeliveryPayload(uploadedFiles));
     } catch (error) {
       console.error("IPFS upload failed", error);
       if (error?.code === "VERCEL_IPFS_NOT_CONFIGURED") {
@@ -985,13 +1091,30 @@ export function createApp() {
             "File upload is not configured for this host. In Vercel project settings add PINATA_JWT (Pinata → API Keys → JWT), or set IPFS_API_HOST to a reachable IPFS HTTP API. Optionally set IPFS_GATEWAY_URL to your Pinata gateway.",
         });
       }
-      const hint =
-        process.env.VERCEL && !USE_PINATA
-          ? " On Vercel, set PINATA_JWT or Pinata API key/secret, or point IPFS_API_HOST at a public IPFS API."
-          : "";
-      return res.status(500).json({
-        message: `Failed to upload file to IPFS.${hint}`,
-      });
+      const message = formatIpfsUploadFailure(error) || "Failed to upload file to IPFS.";
+      return res.status(500).json({ message });
+    }
+  });
+
+  /**
+   * Register CIDs after browser-direct Pinata upload (bypasses Vercel body size limits).
+   * Requires files already pinned (e.g. via VITE_PINATA_JWT on the client).
+   */
+  app.post("/api/digital-products/register-ipfs", async (req, res) => {
+    try {
+      const parsed = registerIpfsFilesSchema.parse(req.body);
+      const uploadedFiles = parsed.files.map((f) => ({
+        ipfsCid: f.ipfsCid.trim(),
+        fileName: uploadOriginalFileName(f.fileName),
+        mimeType: String(f.mimeType || "application/octet-stream").slice(0, 128) || "application/octet-stream",
+      }));
+      return res.json(buildEncryptedDeliveryPayload(uploadedFiles));
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payload", issues: e.issues });
+      }
+      console.error("register-ipfs", e);
+      return res.status(500).json({ message: "Failed to register upload." });
     }
   });
 
@@ -1154,6 +1277,21 @@ export function createApp() {
   app.use((err, _req, res, _next) => {
     if (err?.message === "CORS blocked for this origin") {
       return res.status(403).json({ message: err.message });
+    }
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({
+          message: `Each file must be under 30MB. For larger files use Pinata: PINATA_JWT in backend/.env and VITE_PINATA_JWT in web/.env (unset IPFS_LOCAL_ONLY).`,
+        });
+      }
+      if (err.code === "LIMIT_FILE_COUNT") {
+        return res.status(400).json({ message: "Too many files (max 10 per product)." });
+      }
+      return res.status(400).json({ message: err.message || "Upload rejected." });
+    }
+    if (err?.name === "MongoServerSelectionError" || err?.name === "MongoParseError") {
+      console.error(err);
+      return res.status(503).json({ message: `Database unavailable: ${String(err.message || err).slice(0, 200)}` });
     }
     console.error(err);
     return res.status(500).json({ message: "Internal server error" });

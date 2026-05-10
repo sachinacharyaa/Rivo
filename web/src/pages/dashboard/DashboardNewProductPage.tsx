@@ -25,6 +25,12 @@ const SERVICE_TYPES = [
   { id: "coffee", title: "Coffee", desc: "Support tips.", emoji: "☕" },
 ];
 
+/** Matches backend `multer` max files per product. */
+const MAX_PRODUCT_FILES = 10;
+
+/** Non-standard attrs for “choose folder” in Chromium / Safari. */
+const FOLDER_INPUT_PROPS = { webkitdirectory: "" } as const;
+
 export function DashboardNewProductPage() {
   const navigate = useNavigate();
   const { publicKey } = useWallet();
@@ -171,10 +177,14 @@ export function DashboardNewProductPage() {
   const appendFiles = (incoming: FileList | null) => {
     if (!incoming?.length) return;
     const picked = Array.from(incoming);
-    setFiles((prev) => [...prev, ...picked].slice(0, 10));
+    setFiles((prev) => {
+      const room = MAX_PRODUCT_FILES - prev.length;
+      if (room <= 0) return prev;
+      return [...prev, ...picked.slice(0, room)];
+    });
   };
 
-  const onDropFiles = (e: DragEvent<HTMLLabelElement>) => {
+  const onDropFiles = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     appendFiles(e.dataTransfer.files);
   };
@@ -536,33 +546,70 @@ export function DashboardNewProductPage() {
               </div>
               <div className="gum-field">
                 <label className="gum-label">Upload Files</label>
-                <label
+                <div
                   className="gum-dropzone"
                   style={{ position: "relative" }}
                   onDrop={onDropFiles}
                   onDragOver={(e) => e.preventDefault()}
                 >
-                  <div className="gum-muted">Drag & Drop Files Here</div>
-                  <div className="gum-muted" style={{ margin: "8px 0" }}>
+                  <div className="gum-muted">Drag & drop files or folder here</div>
+                  <div className="gum-muted" style={{ margin: "12px 0 8px" }}>
                     or
                   </div>
-                  <span
-                    className="gum-btn gum-btn--ghost"
-                  >
-                    + Add File
-                  </span>
-                  <input
-                    className="dash-file-input"
-                    type="file"
-                    onChange={(e) => appendFiles(e.target.files)}
+                  <div
                     style={{
-                      position: "absolute",
-                      inset: 0,
-                      opacity: 0,
-                      cursor: "pointer",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
-                  />
-                </label>
+                  >
+                    <label className="gum-btn gum-btn--ghost" style={{ position: "relative", cursor: "pointer", margin: 0 }}>
+                      Add files
+                      <input
+                        className="dash-file-input"
+                        type="file"
+                        multiple
+                        aria-label="Add product files"
+                        onChange={(e) => {
+                          appendFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          opacity: 0,
+                          cursor: "pointer",
+                          width: "100%",
+                          height: "100%",
+                        }}
+                      />
+                    </label>
+                    <label className="gum-btn gum-btn--ghost" style={{ position: "relative", cursor: "pointer", margin: 0 }}>
+                      Add folder
+                      <input
+                        className="dash-file-input"
+                        type="file"
+                        multiple
+                        aria-label="Add all files from a folder"
+                        {...FOLDER_INPUT_PROPS}
+                        onChange={(e) => {
+                          appendFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          opacity: 0,
+                          cursor: "pointer",
+                          width: "100%",
+                          height: "100%",
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
                 {files.length > 0 ? (
                   <div className="gum-muted" style={{ marginTop: "10px" }}>
                     {files.map((f, idx) => (

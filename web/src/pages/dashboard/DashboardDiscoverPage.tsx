@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
-import { isHiddenFromProductListings } from "../../lib/hiddenProducts";
+import { isShownOnDiscover } from "../../lib/hiddenProducts";
 import { productPublicPath } from "../../lib/productUtils";
 import { ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import { FormatProductDescription } from "../../lib/richDescription";
@@ -21,8 +21,8 @@ export function DashboardDiscoverPage() {
   useEffect(() => {
     setLoading(true);
     api
-      .get("/products")
-      .then((res) => setProducts(res.data.filter((p) => !isHiddenFromProductListings(p))))
+      .get<ProductShape[]>("/products")
+      .then((res) => setProducts(res.data.filter((p) => isShownOnDiscover(p))))
       .catch(() => setError("Unable to load products."))
       .finally(() => setLoading(false));
   }, []);

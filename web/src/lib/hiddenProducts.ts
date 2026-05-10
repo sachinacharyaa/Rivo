@@ -21,3 +21,13 @@ export function isHiddenFromProductListings(product: { title?: string } | null |
   if (!title) return false;
   return HIDDEN_TITLES.has(title);
 }
+
+/** Same visibility as Discover: published listings only, not blocklisted, product must exist. */
+export function isShownOnDiscover(
+  product: { title?: string; status?: "draft" | "published"; _id?: string } | null | undefined,
+): boolean {
+  if (!product || !product._id) return false;
+  if (product.status === "draft") return false;
+  if (isHiddenFromProductListings(product)) return false;
+  return true;
+}

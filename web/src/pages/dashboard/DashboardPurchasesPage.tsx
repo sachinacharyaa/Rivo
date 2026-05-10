@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import axios from "axios";
 import { api } from "../../lib/api";
-import { isHiddenFromProductListings } from "../../lib/hiddenProducts";
+import { isShownOnDiscover } from "../../lib/hiddenProducts";
 import { formatTokenAmount, productPublicPath, SUPPORTED_CURRENCIES, type ProductCurrency } from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
 
@@ -81,7 +81,7 @@ export function DashboardPurchasesPage() {
   }, [wallet]);
 
   const visibleItems = useMemo(
-    () => items.filter((p) => !isHiddenFromProductListings(p.productId)),
+    () => items.filter((p) => isShownOnDiscover(p.productId)),
     [items],
   );
 

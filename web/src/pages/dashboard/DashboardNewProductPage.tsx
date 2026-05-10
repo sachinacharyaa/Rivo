@@ -10,6 +10,25 @@ import { CRYPTO_OPTIONS, type ProductCurrency } from "../../lib/productUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
+import { getPinataBrowserJwt, uploadFilesViaPinataBrowser } from "../../lib/pinataClientUpload";
+
+type DigitalProductUploadResponse = {
+  deliveryMode: "ipfs_encrypted";
+  ipfsCid: string;
+  downloadUrl: string;
+  backupUrl: string;
+  encryptedContentKey: string;
+  encryptionAlgorithm: string;
+  fileName: string;
+  mimeType: string;
+  files: {
+    ipfsCid: string;
+    downloadUrl: string;
+    backupUrl: string;
+    fileName: string;
+    mimeType: string;
+  }[];
+};
 
 const PRODUCT_TYPES = [
   { id: "digital", title: "Digital product", desc: "Files, templates, presets, or downloads.", emoji: "📦" },
@@ -27,9 +46,6 @@ const SERVICE_TYPES = [
 
 /** Matches backend `multer` max files per product. */
 const MAX_PRODUCT_FILES = 10;
-
-/** Non-standard attrs for “choose folder” in Chromium / Safari. */
-const FOLDER_INPUT_PROPS = { webkitdirectory: "" } as const;
 
 export function DashboardNewProductPage() {
   const navigate = useNavigate();
@@ -91,27 +107,20 @@ export function DashboardNewProductPage() {
     const smallestUnitPrice =
       draft.currency === "PUSD" ? Math.round(price * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
-      const fd = new FormData();
-      files.forEach((f) => fd.append("files", f));
-      const uploadRes = await api.post<{
-        deliveryMode: "ipfs_encrypted";
-        ipfsCid: string;
-        downloadUrl: string;
-        backupUrl: string;
-        encryptedContentKey: string;
-        encryptionAlgorithm: string;
-        fileName: string;
-        mimeType: string;
-        files: {
-          ipfsCid: string;
-          downloadUrl: string;
-          backupUrl: string;
-          fileName: string;
-          mimeType: string;
-        }[];
-      }>("/digital-products/upload", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const uploadRes = getPinataBrowserJwt()
+        ? await (async () => {
+            const registered = await uploadFilesViaPinataBrowser(files);
+            return api.post<DigitalProductUploadResponse>("/digital-products/register-ipfs", {
+              files: registered,
+            });
+          })()
+        : await (async () => {
+            const fd = new FormData();
+            files.forEach((f) => fd.append("files", f));
+            return api.post<DigitalProductUploadResponse>("/digital-products/upload", fd, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+          })();
 
       const { data } = await api.post<ProductShape>("/products", {
         title: draft.name.trim(),
@@ -174,9 +183,19 @@ export function DashboardNewProductPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const fileLooksFromFolderDrop = (f: File) => {
+    const p = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
+    return typeof p === "string" && p.length > 0;
+  };
+
   const appendFiles = (incoming: FileList | null) => {
     if (!incoming?.length) return;
     const picked = Array.from(incoming);
+    if (picked.some(fileLooksFromFolderDrop)) {
+      setError("Folders cannot be uploaded. Add files only.");
+      return;
+    }
+    setError("");
     setFiles((prev) => {
       const room = MAX_PRODUCT_FILES - prev.length;
       if (room <= 0) return prev;
@@ -186,6 +205,16 @@ export function DashboardNewProductPage() {
 
   const onDropFiles = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    const { items } = e.dataTransfer;
+    if (items?.length) {
+      for (let i = 0; i < items.length; i += 1) {
+        const entry = items[i]?.webkitGetAsEntry?.();
+        if (entry?.isDirectory) {
+          setError("Folders cannot be uploaded. Add files only.");
+          return;
+        }
+      }
+    }
     appendFiles(e.dataTransfer.files);
   };
 
@@ -552,63 +581,31 @@ export function DashboardNewProductPage() {
                   onDrop={onDropFiles}
                   onDragOver={(e) => e.preventDefault()}
                 >
-                  <div className="gum-muted">Drag & drop files or folder here</div>
+                  <div className="gum-muted">Drag & drop files here</div>
                   <div className="gum-muted" style={{ margin: "12px 0 8px" }}>
                     or
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "10px",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <label className="gum-btn gum-btn--ghost" style={{ position: "relative", cursor: "pointer", margin: 0 }}>
-                      Add files
-                      <input
-                        className="dash-file-input"
-                        type="file"
-                        multiple
-                        aria-label="Add product files"
-                        onChange={(e) => {
-                          appendFiles(e.target.files);
-                          e.target.value = "";
-                        }}
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          opacity: 0,
-                          cursor: "pointer",
-                          width: "100%",
-                          height: "100%",
-                        }}
-                      />
-                    </label>
-                    <label className="gum-btn gum-btn--ghost" style={{ position: "relative", cursor: "pointer", margin: 0 }}>
-                      Add folder
-                      <input
-                        className="dash-file-input"
-                        type="file"
-                        multiple
-                        aria-label="Add all files from a folder"
-                        {...FOLDER_INPUT_PROPS}
-                        onChange={(e) => {
-                          appendFiles(e.target.files);
-                          e.target.value = "";
-                        }}
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          opacity: 0,
-                          cursor: "pointer",
-                          width: "100%",
-                          height: "100%",
-                        }}
-                      />
-                    </label>
-                  </div>
+                  <label className="gum-btn gum-btn--ghost" style={{ position: "relative", cursor: "pointer", margin: 0 }}>
+                    Add files
+                    <input
+                      className="dash-file-input"
+                      type="file"
+                      multiple
+                      aria-label="Add product files"
+                      onChange={(e) => {
+                        appendFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        opacity: 0,
+                        cursor: "pointer",
+                        width: "100%",
+                        height: "100%",
+                      }}
+                    />
+                  </label>
                 </div>
                 {files.length > 0 ? (
                   <div className="gum-muted" style={{ marginTop: "10px" }}>

@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stablecoin Payout Thesis</title>
+  <style>
+    :root {
+      --bg: #080a10;
+      --panel: #0f1420;
+      --panel-soft: #121927;
+      --text: #f6f8fb;
+      --muted: #94a3b8;
+      --line: rgba(226, 232, 240, 0.14);
+      --line-strong: rgba(226, 232, 240, 0.24);
+      --green: #14f195;
+      --cyan: #56c8ff;
+      --violet: #9945ff;
+      --amber: #ffd166;
+      --radius: 8px;
+      --sans: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #03050a;
+      color: var(--text);
+      font-family: var(--sans);
+      letter-spacing: 0;
+    }
+
+    body {
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .stage {
+      width: 1280px;
+      height: 720px;
+      display: grid;
+      place-items: center;
+    }
+
+    .slide {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      isolation: isolate;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(90deg, rgba(20, 241, 149, 0.1), transparent 28%),
+        linear-gradient(135deg, rgba(153, 69, 255, 0.12), transparent 34%),
+        var(--bg);
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.58);
+      transform: scale(var(--slide-scale, 1));
+      transform-origin: center;
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.92), transparent 86%);
+    }
+
+    .slide::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: linear-gradient(90deg, rgba(3, 5, 10, 0.08), rgba(3, 5, 10, 0.58));
+      pointer-events: none;
+    }
+
+    .content {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100%;
+      padding: 44px 56px 34px;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 36px;
+      padding: 8px 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.045);
+      color: #dce7f5;
+    }
+
+    .badge-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 18px rgba(20, 241, 149, 0.64);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 0.96fr 1.04fr;
+      align-items: end;
+      gap: 46px;
+      padding: 34px 0 24px;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 15px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 16px 0 0;
+      max-width: 650px;
+      font-size: 72px;
+      line-height: 0.94;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .proof {
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      gap: 18px;
+      margin-top: 34px;
+      max-width: 540px;
+      padding: 20px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(15, 20, 32, 0.74);
+    }
+
+    .proof-mark {
+      display: grid;
+      place-items: center;
+      min-height: 88px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(86, 200, 255, 0.16), rgba(153, 69, 255, 0.12));
+      color: var(--text);
+      font-size: 22px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .proof-label {
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .proof-title {
+      margin-top: 7px;
+      font-size: 28px;
+      line-height: 1.05;
+      font-weight: 900;
+    }
+
+    .proof-route {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 13px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .pill {
+      display: inline-grid;
+      min-height: 28px;
+      place-items: center;
+      padding: 6px 9px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      color: #e9f1fb;
+    }
+
+    .route-line {
+      width: 28px;
+      height: 1px;
+      background: var(--green);
+    }
+
+    .stats {
+      display: grid;
+      gap: 16px;
+    }
+
+    .stat {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      align-items: center;
+      min-height: 112px;
+      padding: 22px 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(15, 20, 32, 0.78);
+    }
+
+    .stat-number {
+      font-family: var(--mono);
+      font-size: 60px;
+      line-height: 0.9;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .green {
+      color: var(--green);
+    }
+
+    .violet {
+      color: #b894ff;
+    }
+
+    .cyan {
+      color: var(--cyan);
+    }
+
+    .stat-label {
+      color: var(--text);
+      font-size: 23px;
+      line-height: 1.08;
+      font-weight: 900;
+    }
+
+    .stat-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+
+    .bottom {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      align-items: end;
+      gap: 28px;
+    }
+
+    .thesis {
+      padding: 18px 22px;
+      border-left: 4px solid var(--green);
+      border-radius: var(--radius);
+      background: linear-gradient(90deg, rgba(20, 241, 149, 0.14), rgba(86, 200, 255, 0.06), rgba(255, 255, 255, 0.02));
+      font-size: 25px;
+      line-height: 1.12;
+      font-weight: 900;
+    }
+
+    .thesis span {
+      color: var(--green);
+    }
+
+    .sources {
+      color: rgba(220, 231, 245, 0.66);
+      font-size: 10px;
+      line-height: 1.4;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .speaker-notes {
+      display: none;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .badge,
+      .eyebrow,
+      h1,
+      .proof,
+      .stat,
+      .thesis {
+        animation: rise 520ms cubic-bezier(0, 0, 0.2, 1) both;
+      }
+
+      h1 {
+        animation-delay: 80ms;
+      }
+
+      .proof {
+        animation-delay: 150ms;
+      }
+
+      .stat:nth-child(1) {
+        animation-delay: 210ms;
+      }
+
+      .stat:nth-child(2) {
+        animation-delay: 270ms;
+      }
+
+      .stat:nth-child(3) {
+        animation-delay: 330ms;
+      }
+
+      .thesis {
+        animation-delay: 400ms;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    }
+
+    @media print {
+      body {
+        overflow: visible;
+      }
+
+      .stage {
+        width: 1280px !important;
+        height: 720px !important;
+      }
+
+      .slide {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <main class="slide" aria-label="Stablecoin payout thesis slide">
+      <section class="content">
+        <header class="topline">
+          <div class="badge"><span class="badge-dot"></span> Stablecoin payout thesis</div>
+          <div>Solana angle</div>
+        </header>
+
+        <section class="main-grid">
+          <div>
+            <div class="eyebrow">Payout rails are shifting</div>
+            <h1>Stablecoins<br>are payout<br>rails.</h1>
+
+            <div class="proof" aria-label="Meta adoption proof point">
+              <div class="proof-mark">Meta</div>
+              <div>
+                <div class="proof-label">Adoption proof</div>
+                <div class="proof-title">USDC creator payouts</div>
+                <div class="proof-route">
+                  <span class="pill">USDC</span>
+                  <span class="route-line"></span>
+                  <span>Solana + Polygon</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats" aria-label="Stablecoin market numbers">
+            <article class="stat">
+              <div class="stat-number green">$10T+</div>
+              <div>
+                <div class="stat-label">Adjusted volume</div>
+                <div class="stat-note">Stablecoin transactions, 2025 estimate.</div>
+              </div>
+            </article>
+
+            <article class="stat">
+              <div class="stat-number violet">316M</div>
+              <div>
+                <div class="stat-label">Active wallets</div>
+                <div class="stat-note">Wallets using stablecoins globally.</div>
+              </div>
+            </article>
+
+            <article class="stat">
+              <div class="stat-number cyan">&lt;$0.001</div>
+              <div>
+                <div class="stat-label">Solana payment fee</div>
+                <div class="stat-note">Typical transfer cost, before account creation.</div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <footer class="bottom">
+          <div class="thesis">Creator payouts are the wedge. <span>Marketplaces are next.</span></div>
+          <div class="sources">
+            Sources: Visa stablecoin strategy, Solana payments docs, Phantom Meta payout guide.
+          </div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <aside class="speaker-notes" aria-label="Speaker script">
+    Stablecoins are moving from crypto trading into real payout infrastructure. The market already has scale: Visa estimates adjusted stablecoin volume above $10 trillion in 2025, with 316 million active stablecoin wallets. The reason this matters for creators is cost and speed. On Solana, a normal payment can settle for less than one tenth of one cent. Meta is the proof point: select creators can now receive USDC payouts, with Solana listed as one of the supported networks. My takeaway is simple: creator payouts are the wedge. Once platforms trust stablecoins for payouts, marketplaces and commerce are the next logical layer.
+  </aside>
+
+  <script>
+    const stage = document.querySelector(".stage");
+    const root = document.documentElement;
+    const slideWidth = 1280;
+    const slideHeight = 720;
+
+    function fitSlide() {
+      const margin = window.innerWidth < 720 ? 16 : 32;
+      const availableWidth = Math.max(window.innerWidth - margin * 2, 320);
+      const availableHeight = Math.max(window.innerHeight - margin * 2, 180);
+      const scale = Math.min(availableWidth / slideWidth, availableHeight / slideHeight, 1);
+
+      root.style.setProperty("--slide-scale", scale.toFixed(4));
+      stage.style.width = `${Math.round(slideWidth * scale)}px`;
+      stage.style.height = `${Math.round(slideHeight * scale)}px`;
+    }
+
+    fitSlide();
+    window.addEventListener("resize", fitSlide);
+  </script>
+</body>
+</html>

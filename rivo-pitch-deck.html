@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rivo Pitch Deck</title>
+  <style>
+    :root {
+      --bg: #08090d;
+      --panel: #101117;
+      --panel-2: #171821;
+      --ink: #f7f3ff;
+      --muted: #aaa5bd;
+      --line: rgba(247, 243, 255, 0.12);
+      --line-strong: rgba(247, 243, 255, 0.22);
+      --mint: #14f195;
+      --pink: #ff90e8;
+      --violet: #9945ff;
+      --amber: #ffc857;
+      --danger: #ff6b6b;
+      --shadow: 0 30px 90px rgba(0, 0, 0, 0.46);
+      --radius: 8px;
+      --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      overflow: hidden;
+    }
+
+    body {
+      background:
+        linear-gradient(120deg, rgba(153, 69, 255, 0.12), transparent 38%),
+        linear-gradient(240deg, rgba(20, 241, 149, 0.11), transparent 42%),
+        var(--bg);
+      letter-spacing: 0;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .deck {
+      position: relative;
+      min-height: 100vh;
+      isolation: isolate;
+    }
+
+    .deck::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 92%);
+    }
+
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: #06100d;
+      background: linear-gradient(135deg, var(--mint), var(--pink));
+      box-shadow: 0 0 32px rgba(20, 241, 149, 0.22);
+    }
+
+    .counter {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .progress {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 4px;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--mint), var(--pink), var(--violet));
+      transition: width 200ms ease-out;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-items: center;
+      padding: 88px 7vw 76px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(30px);
+      transition:
+        opacity 220ms ease-out,
+        transform 220ms ease-out,
+        visibility 0ms linear 220ms;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+      transition-delay: 0ms;
+    }
+
+    .slide-inner {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      width: fit-content;
+      margin-bottom: 22px;
+      color: var(--mint);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+
+    .kicker::before {
+      content: "";
+      width: 28px;
+      height: 1px;
+      background: currentColor;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 1000px;
+      font-size: clamp(48px, 8.4vw, 118px);
+      line-height: 0.95;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      max-width: 980px;
+      font-size: clamp(38px, 6vw, 84px);
+      line-height: 0.98;
+      font-weight: 820;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: clamp(22px, 2.4vw, 34px);
+      line-height: 1.08;
+      font-weight: 780;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 740px;
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: clamp(18px, 2vw, 25px);
+      line-height: 1.48;
+    }
+
+    .accent {
+      color: var(--mint);
+    }
+
+    .pink {
+      color: var(--pink);
+    }
+
+    .violet {
+      color: #c6a4ff;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 52px;
+      align-items: center;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      min-height: 142px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+        var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .card.compact {
+      min-height: 110px;
+      padding: 18px;
+    }
+
+    .icon-box {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--mint);
+      background: rgba(20, 241, 149, 0.08);
+    }
+
+    .icon-box.pink {
+      color: var(--pink);
+      background: rgba(255, 144, 232, 0.08);
+    }
+
+    .icon-box.violet {
+      color: #c6a4ff;
+      background: rgba(153, 69, 255, 0.1);
+    }
+
+    .icon-box.amber {
+      color: var(--amber);
+      background: rgba(255, 200, 87, 0.08);
+    }
+
+    .card-title {
+      margin-bottom: 8px;
+      font-size: 22px;
+      font-weight: 760;
+      line-height: 1.16;
+    }
+
+    .card-text {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .metric {
+      font-family: var(--font-mono);
+      font-size: clamp(32px, 4vw, 58px);
+      line-height: 1;
+      color: var(--mint);
+      font-weight: 800;
+    }
+
+    .metric-label {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.38;
+    }
+
+    .statement {
+      position: relative;
+      padding: 46px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(20, 241, 149, 0.12), transparent 34%),
+        linear-gradient(315deg, rgba(255, 144, 232, 0.11), transparent 38%),
+        var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .statement::after {
+      content: "";
+      position: absolute;
+      left: 46px;
+      right: 46px;
+      bottom: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--mint), var(--pink), var(--violet));
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 34px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 150px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -13px;
+      width: 13px;
+      height: 1px;
+      background: linear-gradient(90deg, var(--mint), transparent);
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-bottom: 16px;
+      border-radius: 50%;
+      color: #06100d;
+      background: var(--mint);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .step-title {
+      font-weight: 760;
+      font-size: 18px;
+      line-height: 1.18;
+    }
+
+    .step-copy {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.38;
+    }
+
+    .product-ui {
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: #0d0e13;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .product-ui-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .traffic {
+      display: inline-flex;
+      gap: 7px;
+    }
+
+    .traffic span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--line-strong);
+    }
+
+    .traffic span:nth-child(1) {
+      background: var(--danger);
+    }
+
+    .traffic span:nth-child(2) {
+      background: var(--amber);
+    }
+
+    .traffic span:nth-child(3) {
+      background: var(--mint);
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 18px;
+      padding: 20px;
+    }
+
+    .preview-art {
+      min-height: 250px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(20, 241, 149, 0.18), transparent 45%),
+        linear-gradient(315deg, rgba(255, 144, 232, 0.16), transparent 50%),
+        #151620;
+      display: grid;
+      place-items: center;
+      color: var(--mint);
+    }
+
+    .checkout {
+      display: grid;
+      gap: 12px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .row strong {
+      color: var(--ink);
+    }
+
+    .button-like {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 46px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--mint), var(--pink));
+      color: #06100d;
+      font-weight: 800;
+      border: 0;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 18px;
+      margin-top: 30px;
+      padding-left: 24px;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 6px;
+      bottom: 6px;
+      width: 1px;
+      background: linear-gradient(var(--mint), var(--pink));
+    }
+
+    .timeline-item {
+      position: relative;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -24px;
+      top: 22px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--mint);
+      box-shadow: 0 0 0 6px rgba(20, 241, 149, 0.1);
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 30px;
+    }
+
+    .compare-panel {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .compare-panel.good {
+      border-color: rgba(20, 241, 149, 0.34);
+      background: linear-gradient(180deg, rgba(20, 241, 149, 0.08), rgba(20, 241, 149, 0.02)), var(--panel);
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+    }
+
+    .list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      line-height: 1.36;
+    }
+
+    .list svg {
+      flex: 0 0 auto;
+      color: var(--mint);
+    }
+
+    .bad .list svg {
+      color: var(--danger);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 26px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .pill svg {
+      color: var(--mint);
+    }
+
+    .nav {
+      position: fixed;
+      right: 22px;
+      bottom: 24px;
+      z-index: 40;
+      display: flex;
+      gap: 10px;
+    }
+
+    .nav button,
+    .notes-toggle {
+      min-width: 44px;
+      min-height: 44px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: rgba(16, 17, 23, 0.82);
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition:
+        transform 120ms ease-out,
+        border-color 120ms ease-out,
+        background 120ms ease-out;
+    }
+
+    .nav button:hover,
+    .notes-toggle:hover {
+      transform: translateY(-1px);
+      border-color: rgba(20, 241, 149, 0.55);
+      background: rgba(23, 24, 33, 0.95);
+    }
+
+    .nav button:focus-visible,
+    .notes-toggle:focus-visible {
+      outline: 2px solid var(--mint);
+      outline-offset: 3px;
+    }
+
+    .notes-toggle {
+      position: fixed;
+      left: 22px;
+      bottom: 24px;
+      z-index: 40;
+      padding: 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .notes {
+      position: fixed;
+      left: 22px;
+      bottom: 82px;
+      z-index: 38;
+      width: min(560px, calc(100vw - 44px));
+      max-height: 42vh;
+      overflow: auto;
+      padding: 18px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(16, 17, 23, 0.96);
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+      display: none;
+    }
+
+    .notes.open {
+      display: block;
+    }
+
+    .notes strong {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+
+    .svg-defs {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+
+    .icon {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    @media (max-width: 980px) {
+      html,
+      body {
+        overflow: auto;
+      }
+
+      .deck {
+        min-height: 100vh;
+      }
+
+      .slide {
+        position: relative;
+        min-height: 100vh;
+        display: none;
+        padding: 88px 22px 96px;
+        transform: none;
+      }
+
+      .slide.active {
+        display: grid;
+      }
+
+      .split,
+      .product-grid,
+      .comparison {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step:not(:last-child)::after {
+        top: auto;
+        right: auto;
+        left: 30px;
+        bottom: -13px;
+        width: 1px;
+        height: 13px;
+        background: linear-gradient(var(--mint), transparent);
+      }
+
+      .topbar {
+        padding: 14px 16px;
+      }
+
+      .counter {
+        display: none;
+      }
+
+      .statement {
+        padding: 28px;
+      }
+
+      .statement::after {
+        left: 28px;
+        right: 28px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.001ms !important;
+        animation-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media print {
+      html,
+      body {
+        overflow: visible;
+        background: #08090d;
+      }
+
+      .topbar,
+      .nav,
+      .notes,
+      .notes-toggle,
+      .progress {
+        display: none !important;
+      }
+
+      .slide {
+        position: relative;
+        min-height: 100vh;
+        page-break-after: always;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <svg class="svg-defs" aria-hidden="true">
+    <symbol id="icon-wallet" viewBox="0 0 24 24"><path d="M19 7V6a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v8a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V7"/><path d="M16 13h.01"/></symbol>
+    <symbol id="icon-box" viewBox="0 0 24 24"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
+    <symbol id="icon-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></symbol>
+    <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="icon-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="icon-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+    <symbol id="icon-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15 8 3 3"/><path d="m17 6 3 3"/></symbol>
+    <symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="icon-dollar" viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></symbol>
+    <symbol id="icon-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+    <symbol id="icon-crown" viewBox="0 0 24 24"><path d="m2 8 5 10h10l5-10-6 4-4-7-4 7-6-4Z"/><path d="M7 22h10"/></symbol>
+    <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  </svg>
+
+  <main class="deck" aria-label="Rivo pitch deck">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark"><svg class="icon"><use href="#icon-zap"></use></svg></span>
+        Rivo
+      </div>
+      <div class="counter" id="counter">01 / 14</div>
+    </header>
+
+    <section class="slide active" data-notes="Hi everyone, Sachin here, founder of Rivo. Today, digital creators are building global businesses on platforms that were never built for global creators.">
+      <div class="slide-inner">
+        <div class="kicker">Creator commerce on Solana</div>
+        <h1>Where creators sell real digital products without platform friction.</h1>
+        <p class="lead">Instant payment. Instant access. Instant creator payout.</p>
+        <div class="pill-row">
+          <span class="pill"><svg class="icon"><use href="#icon-wallet"></use></svg> Wallet-native checkout</span>
+          <span class="pill"><svg class="icon"><use href="#icon-lock"></use></svg> Encrypted delivery</span>
+          <span class="pill"><svg class="icon"><use href="#icon-zap"></use></svg> Solana settlement</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Creators create the product, audience, demand, and trust. They do the hard part of commerce before any platform gets involved.">
+      <div class="slide-inner">
+        <div class="kicker">The value</div>
+        <h2>Creators do the hardest part.</h2>
+        <div class="grid grid-4" style="margin-top: 38px;">
+          <article class="card">
+            <div class="icon-box"><svg class="icon"><use href="#icon-users"></use></svg></div>
+            <div class="card-title">Build audience</div>
+            <p class="card-text">They earn attention before the sale exists.</p>
+          </article>
+          <article class="card">
+            <div class="icon-box pink"><svg class="icon"><use href="#icon-box"></use></svg></div>
+            <div class="card-title">Create product</div>
+            <p class="card-text">Courses, software, templates, research, tools.</p>
+          </article>
+          <article class="card">
+            <div class="icon-box violet"><svg class="icon"><use href="#icon-globe"></use></svg></div>
+            <div class="card-title">Drive demand</div>
+            <p class="card-text">The creator brings the buyer, not the platform.</p>
+          </article>
+          <article class="card">
+            <div class="icon-box amber"><svg class="icon"><use href="#icon-key"></use></svg></div>
+            <div class="card-title">Own trust</div>
+            <p class="card-text">The relationship is built person to person.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="When it is time to sell, creators are punished by the infrastructure: fees, delays, regional restrictions, and fragmented tools.">
+      <div class="slide-inner split">
+        <div>
+          <div class="kicker">The deal</div>
+          <h2>And still get the worst infrastructure.</h2>
+          <p class="lead">The creator makes the value. The platform captures the flow.</p>
+        </div>
+        <div class="grid">
+          <article class="card compact bad">
+            <div class="card-title pink">10-20% platform fees</div>
+            <p class="card-text">Margin leaks before growth starts.</p>
+          </article>
+          <article class="card compact bad">
+            <div class="card-title pink">Slow payouts</div>
+            <p class="card-text">Revenue arrives after the momentum is gone.</p>
+          </article>
+          <article class="card compact bad">
+            <div class="card-title pink">Regional restrictions</div>
+            <p class="card-text">Global creators are blocked by local rails.</p>
+          </article>
+          <article class="card compact bad">
+            <div class="card-title pink">Fragmented tooling</div>
+            <p class="card-text">Payment, access, delivery, and dashboards split apart.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="This is the creator commerce paradox: instead of just making the product, the creator has to become the platform.">
+      <div class="slide-inner">
+        <div class="statement">
+          <div class="kicker">The paradox</div>
+          <h2>The creator has to become the platform before making the first sale.</h2>
+          <div class="flow">
+            <div class="flow-step"><span class="step-number">01</span><div class="step-title">Payment</div><p class="step-copy">Find a processor that works.</p></div>
+            <div class="flow-step"><span class="step-number">02</span><div class="step-title">Verification</div><p class="step-copy">Pass country and identity checks.</p></div>
+            <div class="flow-step"><span class="step-number">03</span><div class="step-title">Access</div><p class="step-copy">Connect membership logic.</p></div>
+            <div class="flow-step"><span class="step-number">04</span><div class="step-title">Delivery</div><p class="step-copy">Protect files and links.</p></div>
+            <div class="flow-step"><span class="step-number">05</span><div class="step-title">Payout</div><p class="step-copy">Wait for the money to arrive.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="If creators own the product, they should own the sale. No middlemen, payout delays, region-locked stack, or broken handoff between purchase and access.">
+      <div class="slide-inner">
+        <div class="kicker">Belief</div>
+        <h2>If creators own the product, they should own the sale.</h2>
+        <p class="lead">The transaction should move as directly as the internet: buyer pays, access unlocks, creator receives revenue.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Web2 marketplaces helped creators sell, but the tradeoff was ownership. The platform became the business and the creator became the supplier.">
+      <div class="slide-inner">
+        <div class="kicker">Why existing platforms fail</div>
+        <h2>Web2 helped creators sell, then captured the relationship.</h2>
+        <div class="comparison">
+          <article class="compare-panel bad">
+            <h3>What creators get</h3>
+            <ul class="list">
+              <li><svg class="icon"><use href="#icon-x"></use></svg> Fees</li>
+              <li><svg class="icon"><use href="#icon-x"></use></svg> Delays</li>
+              <li><svg class="icon"><use href="#icon-x"></use></svg> Lock-in</li>
+              <li><svg class="icon"><use href="#icon-x"></use></svg> Regional limits</li>
+            </ul>
+          </article>
+          <article class="compare-panel good">
+            <h3>What creators need</h3>
+            <ul class="list">
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Ownership</li>
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Instant settlement</li>
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Global access</li>
+              <li><svg class="icon"><use href="#icon-check"></use></svg> One commerce flow</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Web3 marketplaces mostly optimized for NFTs, art, collectibles, and token gates. Creators need commerce for reusable utility products.">
+      <div class="slide-inner split">
+        <div>
+          <div class="kicker">The gap in Web3</div>
+          <h2>Web3 marketplaces did not solve creator commerce.</h2>
+          <p class="lead">They mostly optimized for NFTs, art, collectibles, and token gates. Not real reusable digital products.</p>
+        </div>
+        <div class="grid grid-2">
+          <article class="card"><div class="icon-box pink"><svg class="icon"><use href="#icon-file"></use></svg></div><div class="card-title">Courses</div><p class="card-text">Learning guides and paid knowledge.</p></article>
+          <article class="card"><div class="icon-box"><svg class="icon"><use href="#icon-code"></use></svg></div><div class="card-title">Developer assets</div><p class="card-text">Templates, UI kits, libraries.</p></article>
+          <article class="card"><div class="icon-box violet"><svg class="icon"><use href="#icon-key"></use></svg></div><div class="card-title">Licenses</div><p class="card-text">Software and SaaS access rights.</p></article>
+          <article class="card"><div class="icon-box amber"><svg class="icon"><use href="#icon-crown"></use></svg></div><div class="card-title">Exclusive IP</div><p class="card-text">AI models, private tools, research.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Rivo is the Solana-native marketplace for digital products. Creators list, buyers pay, access unlocks, and payout happens instantly.">
+      <div class="slide-inner">
+        <div class="kicker">The solution</div>
+        <h2>Rivo is the Solana-native marketplace for digital products.</h2>
+        <div class="flow">
+          <div class="flow-step"><span class="step-number">01</span><div class="step-title">Create</div><p class="step-copy">Creator connects wallet and lists product.</p></div>
+          <div class="flow-step"><span class="step-number">02</span><div class="step-title">Discover</div><p class="step-copy">Buyer finds real digital products.</p></div>
+          <div class="flow-step"><span class="step-number">03</span><div class="step-title">Pay</div><p class="step-copy">Wallet payment settles on Solana.</p></div>
+          <div class="flow-step"><span class="step-number">04</span><div class="step-title">Unlock</div><p class="step-copy">Backend verifies and releases access.</p></div>
+          <div class="flow-step"><span class="step-number">05</span><div class="step-title">Earn</div><p class="step-copy">Creator receives instant payout.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Rivo connects payment, verification, delivery, and payout into one loop. The moment value moves, access moves too.">
+      <div class="slide-inner split">
+        <div>
+          <div class="kicker">Product loop</div>
+          <h2>One flow from purchase to payout.</h2>
+          <p class="lead">Transaction verifies on-chain. Content unlocks through encrypted delivery. Creator payout happens instantly with a 1% platform fee.</p>
+        </div>
+        <div class="product-ui" aria-label="Rivo checkout mockup">
+          <div class="product-ui-head"><span class="traffic"><span></span><span></span><span></span></span><span>rivo.market/product</span></div>
+          <div class="product-grid">
+            <div class="preview-art"><svg class="icon" style="width:82px;height:82px;"><use href="#icon-layers"></use></svg></div>
+            <div class="checkout">
+              <h3>Solana UI Kit Pro</h3>
+              <div class="row"><span>Creator</span><strong>0xSachin</strong></div>
+              <div class="row"><span>Price</span><strong>24 USDC</strong></div>
+              <div class="row"><span>Delivery</span><strong>Encrypted IPFS</strong></div>
+              <div class="button-like"><svg class="icon"><use href="#icon-wallet"></use></svg> Pay and unlock</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Buyers pay on-chain; the app verifies the transaction against the listing and unlocks delivery.">
+      <div class="slide-inner">
+        <div class="kicker">Settlement</div>
+        <h2>On-chain payments with transparent fee splits.</h2>
+        <div class="grid grid-4" style="margin-top: 38px;">
+          <article class="card"><div class="icon-box"><svg class="icon"><use href="#icon-lock"></use></svg></div><div class="card-title">Verifiable transfers</div><p class="card-text">Each purchase is a normal Solana transaction buyers can inspect.</p></article>
+          <article class="card"><div class="icon-box pink"><svg class="icon"><use href="#icon-zap"></use></svg></div><div class="card-title">Fast confirmation</div><p class="card-text">Unlock runs as soon as the chain confirms the payment.</p></article>
+          <article class="card"><div class="icon-box violet"><svg class="icon"><use href="#icon-layers"></use></svg></div><div class="card-title">Multi-asset</div><p class="card-text">Support for SOL and SPL-priced listings where configured.</p></article>
+          <article class="card"><div class="icon-box amber"><svg class="icon"><use href="#icon-dashboard"></use></svg></div><div class="card-title">Creator-first</div><p class="card-text">Platform fee routes to a dedicated wallet; the rest to the creator.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="Rivo supports two creator business models: scalable reusable products and premium exclusive ownership. This creates a fuller monetization spectrum.">
+      <div class="slide-inner">
+        <div class="kicker">Market expansion</div>
+        <h2>One marketplace. Two creator business models.</h2>
+        <div class="comparison">
+          <article class="compare-panel good">
+            <h3>Reusable products</h3>
+            <ul class="list">
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Courses and guides</li>
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Templates and UI kits</li>
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Software licenses</li>
+              <li><svg class="icon"><use href="#icon-check"></use></svg> Content libraries</li>
+            </ul>
+          </article>
+          <article class="compare-panel">
+            <h3>Exclusive ownership</h3>
+            <ul class="list">
+              <li><svg class="icon"><use href="#icon-crown"></use></svg> 1:1 premium licenses</li>
+              <li><svg class="icon"><use href="#icon-crown"></use></svg> Proprietary AI models</li>
+              <li><svg class="icon"><use href="#icon-crown"></use></svg> Private algorithms</li>
+              <li><svg class="icon"><use href="#icon-crown"></use></svg> Alpha and research access</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="The MVP already proves the core transaction loop: wallet login, listing, Solana payment, on-chain verification, encrypted delivery, dashboards, and history.">
+      <div class="slide-inner split">
+        <div>
+          <div class="kicker">MVP</div>
+          <h2>The core transaction is already working.</h2>
+          <p class="lead">Rivo is not a concept. The primitive already exists.</p>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item"><h3>Creator flow</h3><p class="card-text">Wallet login, product listing, pricing, metadata, dashboard.</p></div>
+          <div class="timeline-item"><h3>Buyer flow</h3><p class="card-text">Discover page, wallet payment, verified purchase, instant unlock.</p></div>
+          <div class="timeline-item"><h3>Infrastructure</h3><p class="card-text">1% fee logic, sales history, purchase history, encrypted IPFS delivery.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="The business model is simple. Rivo makes money when creators sell, beginning with a 1% platform fee and expanding into placement, subscriptions, storefront tools, and payout infrastructure.">
+      <div class="slide-inner">
+        <div class="kicker">Business model</div>
+        <h2>Rivo makes money when creators sell.</h2>
+        <div class="grid grid-4" style="margin-top: 38px;">
+          <article class="card"><div class="metric">1%</div><p class="metric-label">Platform fee on GMV</p></article>
+          <article class="card"><div class="icon-box pink"><svg class="icon"><use href="#icon-dashboard"></use></svg></div><div class="card-title">Featured placement</div><p class="card-text">Discovery and distribution for products.</p></article>
+          <article class="card"><div class="icon-box violet"><svg class="icon"><use href="#icon-layers"></use></svg></div><div class="card-title">Creator tools</div><p class="card-text">Premium storefronts and analytics.</p></article>
+          <article class="card"><div class="icon-box amber"><svg class="icon"><use href="#icon-lock"></use></svg></div><div class="card-title">Payout layer</div><p class="card-text">Private payout infrastructure as a service.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="This is the closing: digital products should move like the internet. Rivo turns Solana into a commerce rail for global creators.">
+      <div class="slide-inner">
+        <div class="statement">
+          <div class="kicker">The movement</div>
+          <h2>Digital products should move like the internet.</h2>
+          <p class="lead">Global. Instant. Owned. Composable. Permissionless.</p>
+          <div class="pill-row">
+            <span class="pill"><svg class="icon"><use href="#icon-globe"></use></svg> Global creators</span>
+            <span class="pill"><svg class="icon"><use href="#icon-zap"></use></svg> Instant settlement</span>
+            <span class="pill"><svg class="icon"><use href="#icon-key"></use></svg> Creator ownership</span>
+            <span class="pill"><svg class="icon"><use href="#icon-layers"></use></svg> Solana commerce rail</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <button class="notes-toggle" id="notesToggle" type="button" aria-expanded="false">Notes</button>
+    <aside class="notes" id="notes" aria-live="polite"></aside>
+
+    <nav class="nav" aria-label="Slide controls">
+      <button type="button" id="prev" aria-label="Previous slide"><svg class="icon"><use href="#icon-chevron-left"></use></svg></button>
+      <button type="button" id="next" aria-label="Next slide"><svg class="icon"><use href="#icon-chevron-right"></use></svg></button>
+    </nav>
+
+    <div class="progress" aria-hidden="true"><span id="progress"></span></div>
+  </main>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const counter = document.getElementById("counter");
+    const progress = document.getElementById("progress");
+    const notes = document.getElementById("notes");
+    const notesToggle = document.getElementById("notesToggle");
+    const prev = document.getElementById("prev");
+    const next = document.getElementById("next");
+    let current = 0;
+
+    function icon(name) {
+      return `<svg class="icon"><use href="#${name}"></use></svg>`;
+    }
+
+    function setSlide(index) {
+      current = Math.max(0, Math.min(index, slides.length - 1));
+      slides.forEach((slide, slideIndex) => {
+        slide.classList.toggle("active", slideIndex === current);
+      });
+      counter.textContent = `${String(current + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+      progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+      notes.innerHTML = `<strong>${icon("icon-file")} Speaker notes</strong>${slides[current].dataset.notes || ""}`;
+      prev.disabled = current === 0;
+      next.disabled = current === slides.length - 1;
+    }
+
+    prev.addEventListener("click", () => setSlide(current - 1));
+    next.addEventListener("click", () => setSlide(current + 1));
+    notesToggle.addEventListener("click", () => {
+      const isOpen = notes.classList.toggle("open");
+      notesToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+        event.preventDefault();
+        setSlide(current + 1);
+      }
+      if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        event.preventDefault();
+        setSlide(current - 1);
+      }
+      if (event.key.toLowerCase() === "n") {
+        const isOpen = notes.classList.toggle("open");
+        notesToggle.setAttribute("aria-expanded", String(isOpen));
+      }
+      if (event.key === "Home") {
+        setSlide(0);
+      }
+      if (event.key === "End") {
+        setSlide(slides.length - 1);
+      }
+    });
+
+    setSlide(0);
+  </script>
+</body>
+</html>

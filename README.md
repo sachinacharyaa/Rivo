@@ -55,12 +55,12 @@ The current MVP is a Solana-native creator commerce app. A creator connects a wa
 
 ## Currency Status
 
-| Currency | Listing UI | On-chain checkout | Notes |
-| --- | --- | --- | --- |
-| PUSD | Yes | Yes | SPL token checkout path |
-| SOL | Yes | Yes | Current production checkout path |
-| USDC | Yes | No | Display/listing support only |
-| AUDD | Yes | No | Display/listing support only |
+| Currency | Listing UI | On-chain checkout | Notes                            |
+| -------- | ---------- | ----------------- | -------------------------------- |
+| PUSD     | Yes        | Yes               | SPL token checkout path          |
+| SOL      | Yes        | Yes               | Current production checkout path |
+| USDC     | Yes        | No                | Display/listing support only     |
+| AUDD     | Yes        | No                | Display/listing support only     |
 
 ## Architecture
 
@@ -109,17 +109,17 @@ Only after this check does the API create the purchase record and allow `/api/ac
 
 ## Repository Layout
 
-| Path | Purpose |
-| --- | --- |
-| `web/` | React app, wallet providers, dashboard, marketplace, buyer pages |
-| `web/src/lib/payment.ts` | SOL split-payment transaction builder |
-| `web/src/lib/api.ts` | Frontend API client |
-| `web/src/types/product.ts` | Shared product shape used by the UI |
-| `backend/src/app.js` | Express app, schemas, product/purchase/access routes |
-| `backend/src/verifyTransfer.js` | Solana transaction verification logic |
-| `backend/api/index.js` | Vercel serverless API entrypoint |
-| `programs/ripple/src/lib.rs` | Minimal Anchor purchase program |
-| `vercel.json` | Root deployment config for frontend and API |
+| Path                            | Purpose                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `web/`                          | React app, wallet providers, dashboard, marketplace, buyer pages |
+| `web/src/lib/payment.ts`        | SOL split-payment transaction builder                            |
+| `web/src/lib/api.ts`            | Frontend API client                                              |
+| `web/src/types/product.ts`      | Shared product shape used by the UI                              |
+| `backend/src/app.js`            | Express app, schemas, product/purchase/access routes             |
+| `backend/src/verifyTransfer.js` | Solana transaction verification logic                            |
+| `backend/api/index.js`          | Vercel serverless API entrypoint                                 |
+| `programs/ripple/src/lib.rs`    | Minimal Anchor purchase program                                  |
+| `vercel.json`                   | Root deployment config for frontend and API                      |
 
 ## Prerequisites
 
@@ -159,6 +159,7 @@ Create `web/.env`:
 VITE_API_URL=http://localhost:4000/api
 VITE_SOLANA_RPC=https://api.devnet.solana.com
 VITE_SOLANA_NETWORK=devnet
+VITE_PUSD_MINT_ADDRESS=6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY
 VITE_ANALYTICS_DASHBOARD_URL=
 ```
 
@@ -212,25 +213,27 @@ Only one file is accepted per product in the current UI/API flow. The backend st
 
 All routes are prefixed with `/api`.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET` | `/health` | API health check |
-| `GET` | `/products` | List published marketplace products |
-| `GET` | `/products/creator/:wallet` | List products for a creator |
-| `GET` | `/products/slug/:slug` | Load published product by slug |
-| `GET` | `/products/:id` | Load published product by id |
-| `GET` | `/products/:id/owner/:wallet` | Load product for owner editing |
-| `POST` | `/products` | Create product |
-| `POST` | `/products/:id/publish` | Publish product |
-| `PUT` | `/products/:id` | Update product |
-| `POST` | `/purchases/verify` | Verify SOL transfer and record purchase |
-| `POST` | `/access/unlock` | Return delivery data after verified purchase |
-| `GET` | `/download/:productId` | Return IPFS download metadata for a buyer |
-| `GET` | `/purchases/wallet/:wallet` | Buyer purchase history |
-| `GET` | `/purchases/creator/:wallet` | Creator sales history |
-| `GET` | `/creators/:wallet/payout` | Read creator payout wallet |
-| `POST` | `/creators/:wallet/payout` | Update payout wallet across creator products |
-| `POST` | `/digital-products/upload` | Upload one product file to IPFS |
+| Method | Route                         | Purpose                                      |
+| ------ | ----------------------------- | -------------------------------------------- |
+| `GET`  | `/health`                     | API health check                             |
+| `GET`  | `/products`                   | List published marketplace products          |
+| `GET`  | `/products/creator/:wallet`   | List products for a creator                  |
+| `GET`  | `/products/slug/:slug`        | Load published product by slug               |
+| `GET`  | `/products/:id`               | Load published product by id                 |
+| `GET`  | `/products/:id/owner/:wallet` | Load product for owner editing               |
+| `POST` | `/products`                   | Create product                               |
+| `POST` | `/products/:id/publish`       | Publish product                              |
+| `PUT`  | `/products/:id`               | Update product                               |
+| `POST` | `/purchases/verify`           | Verify SOL transfer and record purchase      |
+| `POST` | `/access/unlock`              | Return delivery data after verified purchase |
+| `GET`  | `/download/:productId`        | Return IPFS download metadata for a buyer    |
+| `GET`  | `/purchases/wallet/:wallet`   | Buyer purchase history                       |
+| `GET`  | `/purchases/creator/:wallet`  | Creator sales history                        |
+| `GET`  | `/creators/:wallet/payout`    | Read creator payout wallet                   |
+| `POST` | `/creators/:wallet/payout`    | Update payout wallet across creator products |
+| `POST` | `/digital-products/upload`    | Upload one product file to IPFS              |
+| `POST` | `/analytics/track`            | Ingest a page-visit event                    |
+| `GET`  | `/analytics/dashboard`        | Aggregated visitor dashboard metrics         |
 
 ## Deployment
 
@@ -260,6 +263,20 @@ VITE_SOLANA_NETWORK=devnet
 VITE_ANALYTICS_DASHBOARD_URL=
 ```
 
+Recommended project settings for fewer runtime issues:
+
+- Build command: `cd web && npm run build`
+- Output directory: `web/dist`
+- Install command: `npm install` (per project root)
+- Node.js runtime: 20.x
+- Production branch: `main`
+
+Vercel analytics:
+
+- App-level analytics and Speed Insights are already mounted in `web/src/main.tsx`.
+- Vercel-hosted traffic reports appear in Vercel Dashboard -> Analytics.
+- In-app visitor dashboard is available at `/dashboard/analytics` (powered by `/api/analytics/*`).
+
 Post-deploy checks:
 
 1. `GET /api/health` returns `{ "ok": true }`.
@@ -270,6 +287,7 @@ Post-deploy checks:
 6. Backend verifies the transaction.
 7. Buyer unlocks the product.
 8. Creator and buyer history pages show the purchase.
+9. Open `/dashboard/analytics` and confirm page-view metrics are updating.
 
 ## Anchor Program
 
@@ -314,4 +332,3 @@ If building on a case-sensitive filesystem, confirm the workspace member path in
 - Keep frontend and backend Solana RPC URLs on the same cluster.
 - Treat public IPFS content as public; gate decryption metadata and access through verified purchases.
 - Backend unlock checks are required even if the public product page already knows the content URL.
-

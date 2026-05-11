@@ -38,9 +38,6 @@ export function DashboardSidebar() {
           </span>
           Payments
         </NavLink>
-      </nav>
-      <div className="gum-sidebar__divider" />
-      <nav className="gum-nav gum-nav--secondary">
         <NavLink to="/dashboard/purchases" className={linkClass}>
           <span className="gum-nav__ico gum-nav__ico--svg" aria-hidden>
             <svg

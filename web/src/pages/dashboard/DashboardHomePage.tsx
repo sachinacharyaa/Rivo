@@ -7,6 +7,7 @@ import { api } from "../../lib/api";
 import { formatTokenAmount, SUPPORTED_CURRENCIES, type ProductCurrency } from "../../lib/productUtils";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
+import { isHiddenFromProductListings } from "../../lib/hiddenProducts";
 
 type PurchaseRow = {
   _id: string;
@@ -134,7 +135,11 @@ export function DashboardHomePage() {
   useEffect(() => {
     if (!wallet) return;
     void Promise.all([
-      api.get<ProductShape[]>(`/products/creator/${wallet}`).then((r) => setProducts(r.data)),
+      api
+        .get<ProductShape[]>(`/products/creator/${wallet}`)
+        .then((r) =>
+          setProducts(r.data.filter((product) => !isHiddenFromProductListings(product))),
+        ),
       api.get<PurchaseRow[]>(`/purchases/creator/${wallet}`).then((r) => setPurchases(r.data)),
       api.get<unknown[]>(`/purchases/wallet/${wallet}`).then((r) => setBuyerPurchaseCount(r.data.length)),
     ]);

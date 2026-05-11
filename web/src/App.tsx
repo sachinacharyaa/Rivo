@@ -12,7 +12,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { api } from "./lib/api";
 import axios from "axios";
-import { isShownOnDiscover } from "./lib/hiddenProducts";
+import { isHiddenFromProductListings, isShownOnDiscover } from "./lib/hiddenProducts";
 import { productPublicPath } from "./lib/productUtils";
 import { ProductPriceWithLogo } from "./components/CurrencyPriceAssets";
 import { FormatProductDescription } from "./lib/richDescription";
@@ -503,7 +503,13 @@ function ProductPage() {
     setProduct(null);
     api
       .get(path)
-      .then((res) => setProduct(res.data))
+      .then((res) => {
+        if (isHiddenFromProductListings(res.data)) {
+          setLoadError("Product not found.");
+          return;
+        }
+        setProduct(res.data);
+      })
       .catch(() => setLoadError("Product not found."));
   }, [id, slug]);
 
@@ -631,30 +637,6 @@ function ProductPage() {
     }
   };
 
-  if (loadError) {
-    return (
-      <Layout>
-        <section className="page-section">
-          <div className="error">{loadError}</div>
-        </section>
-      </Layout>
-    );
-  }
-
-  if (!product) {
-    return (
-      <Layout>
-        <section className="page-section">
-          <div className="empty">Loading product...</div>
-        </section>
-      </Layout>
-    );
-  }
-
-  const explorerProofUrl = txSignature
-    ? `https://explorer.solana.com/tx/${txSignature}?cluster=${networkLabel}`
-    : "";
-
   const unlockFiles: AccessFile[] = useMemo(() => {
     if (!accessPayload) return [];
     if (Array.isArray(accessPayload.files) && accessPayload.files.length > 0) {
@@ -679,6 +661,30 @@ function ProductPage() {
       },
     ];
   }, [accessPayload]);
+
+  if (loadError) {
+    return (
+      <Layout>
+        <section className="page-section">
+          <div className="error">{loadError}</div>
+        </section>
+      </Layout>
+    );
+  }
+
+  if (!product) {
+    return (
+      <Layout>
+        <section className="page-section">
+          <div className="empty">Loading product...</div>
+        </section>
+      </Layout>
+    );
+  }
+
+  const explorerProofUrl = txSignature
+    ? `https://explorer.solana.com/tx/${txSignature}?cluster=${networkLabel}`
+    : "";
 
   return (
     <Layout>

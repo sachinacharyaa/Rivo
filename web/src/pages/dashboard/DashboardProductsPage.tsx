@@ -13,6 +13,7 @@ import {
 } from "../../lib/productUtils";
 import { ProductPriceWithLogo } from "../../components/CurrencyPriceAssets";
 import type { ProductShape } from "../../types/product";
+import { isHiddenFromProductListings } from "../../lib/hiddenProducts";
 
 type CurrencyTotals = Record<ProductCurrency, number>;
 
@@ -46,7 +47,9 @@ export function DashboardProductsPage() {
     setLoading(true);
     api
       .get<ProductShape[]>(`/products/creator/${wallet}`)
-      .then((r) => setProducts(r.data))
+      .then((r) =>
+        setProducts(r.data.filter((product) => !isHiddenFromProductListings(product))),
+      )
       .finally(() => setLoading(false));
   }, [wallet]);
 

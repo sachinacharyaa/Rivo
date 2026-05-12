@@ -358,13 +358,33 @@ export function DashboardNewProductPage() {
             </p>
           ) : null}
         </div>
-        {step === 3 ? (
-          <div className="gum-new-top__actions">
+        <div className="gum-new-top__actions">
+          {step === 1 ? (
+            <>
+              <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
+                Cancel
+              </button>
+              <button type="button" className="gum-btn gum-btn--pink" onClick={goCustomize} disabled={!canStep1}>
+                Next: Customize
+              </button>
+            </>
+          ) : null}
+          {step === 2 ? (
+            <>
+              <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
+                Cancel
+              </button>
+              <button type="submit" form="form-customize" className="gum-btn gum-btn--pink" disabled={submitting || !canStep2}>
+                {submitting ? "Saving…" : "Next: Share"}
+              </button>
+            </>
+          ) : null}
+          {step === 3 ? (
             <Link to="/dashboard/products" className="gum-btn gum-btn--ghost">
               Back to products
             </Link>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {step === 1 ? (
@@ -458,14 +478,6 @@ export function DashboardNewProductPage() {
 
             {error ? <div className="dash-alert dash-alert--error">{error}</div> : null}
           </div>
-        </div>
-        <div className="gum-new-footer-actions">
-          <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
-            Cancel
-          </button>
-          <button type="button" className="gum-btn gum-btn--pink" onClick={goCustomize} disabled={!canStep1}>
-            Next: Customize
-          </button>
         </div>
         </>
       ) : null}
@@ -658,14 +670,6 @@ export function DashboardNewProductPage() {
               </p>
             </div>
           </aside>
-        </div>
-        <div className="gum-new-footer-actions">
-          <button type="button" className="gum-btn gum-btn--ghost" onClick={() => navigate("/dashboard/products")}>
-            Cancel
-          </button>
-          <button type="submit" form="form-customize" className="gum-btn gum-btn--pink" disabled={submitting || !canStep2}>
-            {submitting ? "Saving…" : "Next: Share"}
-          </button>
         </div>
         </>
       ) : null}

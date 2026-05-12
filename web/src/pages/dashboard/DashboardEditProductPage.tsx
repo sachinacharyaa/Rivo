@@ -21,6 +21,7 @@ export function DashboardEditProductPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [contentUrl, setContentUrl] = useState("");
@@ -141,6 +142,25 @@ export function DashboardEditProductPage() {
     }
   };
 
+  const deleteProduct = async () => {
+    if (!wallet || !id) return;
+    if (!window.confirm("Delete this product permanently? You can recreate it any time.")) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await api.delete(`/products/${id}`, { params: { creatorWallet: wallet } });
+      navigate("/dashboard/products");
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { message?: string } | undefined;
+        setError(data?.message || "Could not delete product.");
+      } else {
+        setError("Could not delete product.");
+      }
+      setDeleting(false);
+    }
+  };
+
   if (!wallet) return <div className="gum-muted">Connect your wallet to edit products.</div>;
   if (loading) return <div className="gum-muted">Loading editor…</div>;
 
@@ -155,7 +175,16 @@ export function DashboardEditProductPage() {
           <Link to="/dashboard/products" className="gum-btn gum-btn--ghost">
             Back
           </Link>
-          <button type="submit" form="form-edit-product" className="gum-btn gum-btn--pink" disabled={saving}>
+          <button
+            type="button"
+            className="gum-btn gum-btn--ghost"
+            style={{ color: "var(--danger, #e53e3e)" }}
+            onClick={deleteProduct}
+            disabled={deleting || saving}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+          <button type="submit" form="form-edit-product" className="gum-btn gum-btn--pink" disabled={saving || deleting}>
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>

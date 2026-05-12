@@ -910,6 +910,21 @@ export function createApp() {
     }
   });
 
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id);
+      if (!product) return res.status(404).json({ message: "Not found" });
+      const creatorWallet = req.query.creatorWallet || req.body?.creatorWallet;
+      if (!creatorWallet || creatorWallet !== product.creatorWallet) {
+        return res.status(403).json({ message: "Only the product owner can delete this product" });
+      }
+      await product.deleteOne();
+      return res.json({ ok: true });
+    } catch {
+      return res.status(400).json({ message: "Invalid product id" });
+    }
+  });
+
   app.post("/api/purchases/verify", async (req, res) => {
     const { productId, buyerWallet, txSignature, currency, paymentMode } = req.body;
     if (!productId || !buyerWallet || !txSignature) {

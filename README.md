@@ -1,134 +1,6 @@
 # Rivo
 
-Creators today lose revenue because platforms take 10–20% on their generated income, delay payouts and face global restrictions. Even getting started is difficult—creators often need tools like Stripe or similar payment processors which can be unavailable in many countries, require complex setup and still charge high fees. This creates significant friction before a creator even makes their first sale.
-
-Most existing Web3 marketplaces are not designed for true digital product commerce. They primarily focus on NFTs, art and token-gated access only which require multiple steps and fragmented tools.
-
-As a result, Creators still lack a seamless way to sell digital products where they can get paid instantly and buyers unlock access immediately which is all in one experience and Rivo is built to solve exactly this gap.
-
-Rivo uses Solana to remove these barriers which enabling creators to sell real digital products with low fees, instant payouts and permissionless access.
-
-Buyers pay with their wallet and unlock products instantly—no intermediaries, no delays.
-
-Rivo unlocks the true potential of digital commerce by enabling creators to list real, reusable digital products items that can be sold to unlimited buyers such as SaaS and software licenses, courses and premium guides, developer assets like templates and UI kits and creator packs including design, media and content. It focuses on practical value, allowing users to reinvest their earnings such as rewards from communities like Superteam into tools, knowledge and resources that genuinely improve their skills, productivity and everyday life.
-
-At the same time, Rivo supports exclusive also 1:1 digital ownership through NFTs, enabling creators to offer high-value, limited-access products such as premium software licenses, proprietary AI models or private algorithms, and research or alpha signals. This dual approach combining scalable digital products with verifiable exclusive ownership ensures that creators can monetize across different value tiers while buyers gain both accessible resources and unique, high value digital assets within a single seamless ecosystem.
-
-The current MVP is a Solana-native creator commerce app. A creator connects a wallet, creates a product, sets pricing and payout wallet details and publishes a buyer-facing product page. A buyer connects a wallet, pays on Solana and the backend verifies the transaction before unlocking the purchased file or link. The app already supports product metadata, creator dashboards, buyer purchase history, sales history, split payment logic with a 1% platform fee, backend verification of confirmed Solana transfers and encrypted IPFS delivery for uploaded files.
-
-## Current Product Flow
-
-### Creator
-
-1. Connect a Phantom-compatible wallet.
-2. Open the dashboard.
-3. Create a digital product with title, description, cover, price, and file.
-4. Set a payout wallet.
-5. Publish the product.
-6. Share the public product link.
-
-### Buyer
-
-1. Open a public product page.
-2. Connect wallet.
-3. Pay with SOL.
-4. Backend verifies the confirmed Solana transaction.
-5. Rivo records the purchase.
-6. Buyer unlocks the file or content link immediately.
-
-## What Works Today
-
-- React marketplace and buyer-facing product pages
-- Wallet-gated creator dashboard
-- Product creation, editing, publishing, and listing
-- SOL checkout using `SystemProgram.transfer`
-- 1% platform fee split in the client transaction
-- Backend verification of buyer-to-creator and buyer-to-platform transfers
-- Idempotent purchase recording by transaction signature
-- Buyer purchase history
-- Creator sales history
-- Payout wallet settings
-- Direct-link delivery mode
-- IPFS encrypted delivery metadata after verified purchase
-- Vercel deployment layout for frontend + serverless API
-- Minimal Anchor `purchase(amount)` program for future on-chain routing
-
-## Currency Status
-
-| Currency | Listing UI | On-chain checkout | Notes                            |
-| -------- | ---------- | ----------------- | -------------------------------- |
-| PUSD     | Yes        | Yes               | SPL token checkout path          |
-| SOL      | Yes        | Yes               | Current production checkout path |
-| USDC     | Yes        | No                | Display/listing support only     |
-| AUDD     | Yes        | No                | Display/listing support only     |
-
-## Architecture
-
-```text
-web/
-  React + Vite frontend
-  Solana Wallet Adapter + Phantom
-  Dashboard, marketplace, buyer pages
-
-backend/
-  Express API
-  MongoDB/Mongoose persistence
-  Solana transaction verification
-  IPFS upload and gated unlock metadata
-
-programs/ripple/
-  Anchor program for a minimal purchase instruction
-```
-
-### Payment Verification
-
-The frontend creates one payment transaction with two splits:
-
-- SOL listings (native lamports): buyer -> creator payout wallet, buyer -> Rivo platform fee wallet
-- PUSD listings (SPL token): buyer -> creator payout ATA, buyer -> Rivo platform fee wallet ATA
-
-The backend fetches the confirmed transaction from Solana RPC and verifies:
-
-- the transaction exists and did not fail
-- the buyer wallet matches
-- the creator payout received the expected amount
-- the platform wallet received the expected 1% fee
-- the transaction signature has not already been used for another purchase
-
-Only after this check does the API create the purchase record and allow `/api/access/unlock` to return delivery data.
-
-## Tech Stack
-
-- Frontend: React 19, Vite, TypeScript, Tailwind CSS, React Router, Framer Motion
-- Wallets: Solana Wallet Adapter, Phantom adapter
-- Solana: `@solana/web3.js`, devnet by default
-- Backend: Express 5, MongoDB, Mongoose, Zod, Multer
-- Storage: IPFS HTTP client with configurable gateway fallback
-- On-chain program: Anchor 0.31.1
-- Deployment: Vercel static build + Node serverless function
-
-## Repository Layout
-
-| Path                            | Purpose                                                          |
-| ------------------------------- | ---------------------------------------------------------------- |
-| `web/`                          | React app, wallet providers, dashboard, marketplace, buyer pages |
-| `web/src/lib/payment.ts`        | SOL split-payment transaction builder                            |
-| `web/src/lib/api.ts`            | Frontend API client                                              |
-| `web/src/types/product.ts`      | Shared product shape used by the UI                              |
-| `backend/src/app.js`            | Express app, schemas, product/purchase/access routes             |
-| `backend/src/verifyTransfer.js` | Solana transaction verification logic                            |
-| `backend/api/index.js`          | Vercel serverless API entrypoint                                 |
-| `programs/ripple/src/lib.rs`    | Minimal Anchor purchase program                                  |
-| `vercel.json`                   | Root deployment config for frontend and API                      |
-
-## Prerequisites
-
-- Node.js 20+
-- MongoDB Atlas URI or local MongoDB
-- Phantom wallet on the same Solana cluster as the app
-- IPFS daemon or compatible IPFS API if using file uploads
-- Optional: Rust + Anchor CLI for program builds
-
+cc
 ## Environment Variables
 
 ### Backend
@@ -161,9 +33,13 @@ VITE_SOLANA_RPC=https://api.devnet.solana.com
 VITE_SOLANA_NETWORK=devnet
 VITE_PUSD_MINT_ADDRESS=6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY
 VITE_ANALYTICS_DASHBOARD_URL=
+# Optional: same Pinata JWT as backend — uploads go from the browser to Pinata (needed for large files on Vercel).
+# VITE_PINATA_JWT=
 ```
 
 For Vercel, set `VITE_API_URL=/api` so the frontend calls the same-domain serverless API.
+
+**Large digital files (e.g. video):** Vercel limits how big a request body can be for serverless functions. Set **`VITE_PINATA_JWT`** to the same (or a scoped) Pinata JWT as **`PINATA_JWT`** so files upload **directly from the browser** to Pinata; the app then calls **`/api/digital-products/register-ipfs`** with only the CIDs (small JSON). Without `VITE_PINATA_JWT`, only smaller files may succeed through **`/api/digital-products/upload`**.
 
 ## Local Development
 
@@ -207,7 +83,11 @@ Product file upload calls `/api/digital-products/upload`, which uses the configu
 - local gateway: `http://127.0.0.1:8081/ipfs`
 - fallback gateway: `https://ipfs.io/ipfs`
 
-Only one file is accepted per product in the current UI/API flow. The backend stores the IPFS CID and encrypted delivery metadata, then only returns that metadata after a verified purchase.
+**Local dev without Pinata:** Run `ipfs daemon` (Kubo) so the API is reachable. In `backend/.env` set **`IPFS_LOCAL_ONLY=1`** to force Kubo-only uploads and gateway URLs; Pinata keys in the same file are then ignored (useful if you added `PINATA_JWT` for production but want localhost to behave like before). Remove or leave blank `PINATA_JWT` / `VITE_PINATA_JWT` when testing Kubo only.
+
+Pinata env values are **trimmed**; an empty or whitespace-only `PINATA_JWT` does not enable Pinata.
+
+The backend stores the IPFS CID and delivery metadata, then returns download metadata after a verified purchase.
 
 ## API Summary
 
@@ -252,16 +132,25 @@ SOLANA_RPC=https://api.devnet.solana.com
 CORS_ORIGINS=https://your-domain.vercel.app
 RIPPLE_FEE_WALLET=
 PUSD_MINT_ADDRESS=
-IPFS_API_HOST=
-IPFS_API_PORT=
-IPFS_API_PROTOCOL=
-IPFS_GATEWAY_URL=
-IPFS_GATEWAY_FALLBACK_URL=
+# Product file uploads: use Pinata (recommended). Local IPFS (127.0.0.1) is not reachable from Vercel.
+PINATA_JWT=
+# Same Pinata JWT in frontend (browser upload for large files on Vercel)
+VITE_PINATA_JWT=
+# Optional: custom gateway (defaults to https://gateway.pinata.cloud/ipfs when Pinata is set)
+# IPFS_GATEWAY_URL=
+IPFS_GATEWAY_FALLBACK_URL=https://ipfs.io/ipfs
+# Legacy Pinata (if not using JWT): PINATA_API_KEY= + PINATA_API_SECRET=
+# Local Kubo only if the API is on a public host:
+# IPFS_API_HOST=
+# IPFS_API_PORT=
+# IPFS_API_PROTOCOL=
 VITE_API_URL=/api
 VITE_SOLANA_RPC=https://api.devnet.solana.com
 VITE_SOLANA_NETWORK=devnet
 VITE_ANALYTICS_DASHBOARD_URL=
 ```
+
+**Uploads on Vercel:** Add `PINATA_JWT` from [Pinata API keys](https://app.pinata.cloud/keys). Serverless routes have a **request body size limit** (often ~4.5 MB on Hobby); very large videos may need direct-to-Pinata uploads from the browser or a larger limit plan.
 
 Recommended project settings for fewer runtime issues:
 

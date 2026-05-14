@@ -586,17 +586,10 @@ export function createApp() {
   app.use(cors({ origin: corsOptions }));
   app.use(express.json({ limit: "15mb" }));
 
-  app.use(async (_req, _res, next) => {
-    try {
-      await ensureDbConnected();
-      next();
-    } catch (e) {
-      next(e);
-    }
-  });
-
+  // Health must not sit behind ensureDbConnected — missing MONGODB_URI would block all routes
+  // and make Vercel look like a broken deployment (FUNCTION_INVOCATION_FAILED / timeouts).
   app.get("/api/health", async (_req, res) => {
-    const body = { ok: true };
+    const body = { ok: true, mongoConfigured: Boolean(String(process.env.MONGODB_URI || "").trim()) };
     if (USE_PINATA_UPLOAD) {
       body.uploads = "pinata";
     } else {
@@ -621,6 +614,15 @@ export function createApp() {
       }
     }
     res.json(body);
+  });
+
+  app.use(async (_req, _res, next) => {
+    try {
+      await ensureDbConnected();
+      next();
+    } catch (e) {
+      next(e);
+    }
   });
 
   app.post("/api/analytics/track", async (req, res) => {
@@ -1307,6 +1309,9 @@ export function createApp() {
     if (err?.name === "MongoServerSelectionError" || err?.name === "MongoParseError") {
       console.error(err);
       return res.status(503).json({ message: `Database unavailable: ${String(err.message || err).slice(0, 200)}` });
+    }
+    if (String(err?.message || "").includes("MONGODB_URI is required")) {
+      return res.status(503).json({ message: "Server misconfiguration: MONGODB_URI is not set." });
     }
     console.error(err);
     return res.status(500).json({ message: "Internal server error" });

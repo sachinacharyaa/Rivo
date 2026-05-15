@@ -4,14 +4,15 @@
   "buildCommand": "npm run build --prefix web",
   "outputDirectory": "web/dist",
   "functions": {
-    "backend/api/index.js": {
-      "maxDuration": 60
+    "api/index.js": {
+      "maxDuration": 60,
+      "includeFiles": "backend/src/**"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/api/index.js"
+      "destination": "/api/index.js"
     },
     {
       "source": "/(.*)",

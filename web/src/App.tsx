@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   Link,
   Navigate,
@@ -97,6 +97,69 @@ function Coins() {
   );
 }
 
+function FooterEmailSignup() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) return;
+
+    setStatus("loading");
+    setMessage("");
+
+    try {
+      const res = await api.post<{ success?: boolean; message?: string }>("/subscribers", {
+        email: trimmed,
+      });
+      setStatus("success");
+      setMessage(res.data.message || "Thanks for subscribing!");
+      setEmail("");
+    } catch (err) {
+      setStatus("error");
+      if (axios.isAxiosError(err)) {
+        setMessage(err.response?.data?.message || "Could not subscribe. Try again.");
+      } else {
+        setMessage("Could not subscribe. Try again.");
+      }
+    }
+  };
+
+  return (
+    <div className="gr-footer-col gr-footer-col--email">
+      <p className="gr-footer-email-lead">
+        Subscribe for tips and growth hacks straight to your inbox.
+      </p>
+      <form className="gr-footer-email-form" onSubmit={handleSubmit}>
+        <input
+          type="email"
+          name="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          autoComplete="email"
+          required
+          disabled={status === "loading"}
+          aria-label="Email address"
+        />
+        <button type="submit" disabled={status === "loading" || !email.trim()}>
+          {status === "loading" ? "Sending…" : "Subscribe"}
+        </button>
+      </form>
+      {message ? (
+        <p
+          className={`gr-footer-email-msg${status === "error" ? " gr-footer-email-msg--error" : ""}`}
+          role="status"
+        >
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function Layout({
   children,
   variant = "default",
@@ -147,7 +210,7 @@ function Layout({
         {children}
       </main>
       {variant !== "dashboard" && (
-        <footer className="gr-footer bg-solana-gradient">
+        <footer className="gr-footer">
           <div className="gr-footer-cta">
             <div className="gr-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <h2 className="gr-title-huge" style={{ textAlign: "center", marginBottom: "24px" }}>Ready to earn?</h2>
@@ -162,7 +225,7 @@ function Layout({
 
           <div className="gr-footer-bottom gr-container">
             <div className="gr-footer-brand">
-              <Link to="/" className="logo text-white" style={{ fontSize: "2.2rem" }}>Rivo.</Link>
+              <Link to="/" className="logo text-white">Rivo.</Link>
               <span className="gr-footer-desc">The Web3 creator monetization layer.</span>
             </div>
             <div className="gr-footer-links">
@@ -172,15 +235,11 @@ function Layout({
                 <Link to="/dashboard/home">Dashboard</Link>
               </div>
               <div className="gr-footer-col">
-                <strong>Legal</strong>
-                <a href="#">Terms of Service</a>
-                <a href="#">Privacy Policy</a>
-              </div>
-              <div className="gr-footer-col">
                 <strong>Socials</strong>
                 <a href="#">Twitter / X</a>
                 <a href="#">Discord</a>
               </div>
+              <FooterEmailSignup />
             </div>
           </div>
         </footer>

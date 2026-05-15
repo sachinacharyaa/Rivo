@@ -3426,17 +3426,12 @@ textarea {
   overflow: hidden;
   position: relative;
   z-index: 10;
-  background: #0f1015;
-  /* dark base */
-  background-image:
-    radial-gradient(ellipse at 100% 100%, rgba(20, 241, 149, 0.25) 0%, transparent 60%),
-    radial-gradient(ellipse at 0% 0%, rgba(88, 101, 242, 0.25) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(153, 69, 255, 0.12) 0%, transparent 60%);
+  background: var(--header-bg);
   color: var(--white);
 }
 
 .gr-footer-cta {
-  padding: 100px 24px;
+  padding: 72px 24px;
   border-bottom: none;
   text-align: center;
   background: var(--cream);
@@ -3476,48 +3471,52 @@ textarea {
 .gr-footer-bottom {
   display: flex;
   flex-wrap: wrap;
-  gap: 60px;
-  padding: 60px 24px;
+  gap: 40px;
+  padding: 36px 24px 44px;
   justify-content: space-between;
 }
 
 .gr-footer-brand {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 300px;
+  gap: 8px;
+  max-width: 280px;
+}
+
+.gr-footer-brand .logo {
+  font-size: 1.35rem;
 }
 
 .gr-footer-desc {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 500;
   color: rgba(255, 255, 255, 0.65);
 }
 
 .gr-footer-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 48px;
+  gap: 36px;
 }
 
 .gr-footer-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .gr-footer-col strong {
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-size: 0.85rem;
+  font-weight: 700;
   color: var(--white);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .gr-footer-col a {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 500;
   color: rgba(255, 255, 255, 0.55);
   text-decoration: none;
   transition: color 0.2s;
@@ -3526,6 +3525,84 @@ textarea {
 .gr-footer-col a:hover {
   color: var(--white);
   text-decoration: underline;
+}
+
+.gr-footer-col--email {
+  min-width: min(100%, 320px);
+  max-width: 360px;
+}
+
+.gr-footer-email-lead {
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+
+.gr-footer-email-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gr-footer-email-form input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 9px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--white);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.gr-footer-email-form input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.gr-footer-email-form input:focus-visible {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gr-footer-email-form button {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--sol-green);
+  color: #0d0a17;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.gr-footer-email-form button:hover:not(:disabled) {
+  background: var(--sol-green-dark);
+}
+
+.gr-footer-email-form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gr-footer-email-msg {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.gr-footer-email-msg--error {
+  color: #ffb4b4;
 }
 
 .gum-analytics-skeletons {

@@ -134,6 +134,14 @@ const visitorEventSchema = new mongoose.Schema(
 );
 const VisitorEvent =
   mongoose.models.VisitorEvent || mongoose.model("VisitorEvent", visitorEventSchema);
+const subscriberSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+  },
+  { timestamps: true },
+);
+const Subscriber =
+  mongoose.models.Subscriber || mongoose.model("Subscriber", subscriberSchema);
 
 const slugify = (value) =>
   value
@@ -622,6 +630,30 @@ export function createApp() {
       next();
     } catch (e) {
       next(e);
+    }
+  });
+
+  app.post("/api/subscribers", async (req, res) => {
+    try {
+      const email = String(req.body?.email || "")
+        .trim()
+        .toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: "Valid email is required." });
+      }
+
+      const existing = await Subscriber.findOne({ email });
+      if (existing) {
+        return res.json({ success: true, message: "You're already subscribed." });
+      }
+
+      await Subscriber.create({ email });
+      return res.status(201).json({ success: true, message: "Thanks for subscribing!" });
+    } catch (e) {
+      if (e?.code === 11000) {
+        return res.json({ success: true, message: "You're already subscribed." });
+      }
+      return res.status(500).json({ message: "Could not subscribe. Try again." });
     }
   });
 

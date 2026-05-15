@@ -1,67 +1,284 @@
 # Rivo
 
-cc
-## Environment Variables
+**Stablecoin-native creator monetization** — sell real digital products, accept crypto checkout and unlock content after on-chain payment verification.
 
-### Backend
+**Production:** [rivolabs.app](https://rivolabs.app)
 
-Create `backend/.env`:
+---
 
-```env
-PORT=4000
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
-SOLANA_RPC=https://api.devnet.solana.com
-CORS_ORIGINS=http://localhost:5173
-RIPPLE_FEE_WALLET=G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw
-PUSD_MINT_ADDRESS=6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY
-IPFS_API_HOST=127.0.0.1
-IPFS_API_PORT=5001
-IPFS_API_PROTOCOL=http
-IPFS_GATEWAY_URL=http://127.0.0.1:8081/ipfs
-IPFS_GATEWAY_FALLBACK_URL=https://ipfs.io/ipfs
+## Table of contents
+
+- [Overview](#overview)
+- [What’s in this repo](#whats-in-this-repo)
+- [Architecture](#architecture)
+  - [System overview](#system-overview)
+  - [Purchase & unlock flow](#purchase--unlock-flow)
+  - [Production deployment (Vercel)](#production-deployment-vercel)
+- [Repository structure](#repository-structure)
+- [Tech stack](#tech-stack)
+- [Frontend routes](#frontend-routes)
+- [API reference](#api-reference)
+- [Local development](#local-development)
+- [Environment variables](#environment-variables)
+- [IPFS & file uploads](#ipfs--file-uploads)
+- [Deployment](#deployment)
+- [Anchor program](#anchor-program)
+- [Waitlist app](#waitlist-app)
+- [Security](#security)
+- [Roadmap](#roadmap)
+
+---
+
+## Overview
+
+Rivo lets creators:
+
+1. Connect a Solana wallet (e.g. Phantom).
+2. Create and publish digital products with a price in **PUSD**, **USDC**, **USDT**, **AUDD**, or **SOL**.
+3. Upload delivery files to **IPFS** (local Kubo or Pinata).
+4. Share a public product URL (`/p/:id` or `/:slug`).
+5. Receive payment when a buyer completes checkout; the backend **verifies the transaction** on-chain before unlocking access.
+
+Buyers browse the marketplace, pay from their wallet, and unlock gated content immediately after verification.
+
+---
+
+## What’s in this repo
+
+| Package                | Role                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **`web/`**             | React + Vite SPA — landing page, marketplace, creator dashboard, public product pages, wallet checkout         |
+| **`backend/`**         | Express API — products, purchases, IPFS uploads, analytics, email subscribers                                  |
+| **`programs/ripple/`** | Anchor program (`purchase`) — optional on-chain SOL transfer rail (MVP uses native transfers + backend verify) |
+| **`waitlist/`**        | Standalone waitlist landing + MongoDB signup (separate deploy)                                                 |
+| **`vercel.json`**      | Monorepo deploy: static `web/dist` + serverless `backend/api`                                                  |
+
+---
+
+## Architecture
+
+### System overview
+
+```mermaid
+flowchart TB
+  subgraph Client["Browser"]
+    SPA["web/ — React SPA"]
+    Wallet["Phantom / Wallet Adapter"]
+    PinataBrowser["Optional: direct Pinata upload"]
+  end
+
+  subgraph Vercel["Vercel (production)"]
+    Static["web/dist — static assets"]
+    Fn["backend/api/index.js — serverless"]
+  end
+
+  subgraph Data["External services"]
+    Mongo[(MongoDB)]
+    RPC["Solana RPC"]
+    IPFS["IPFS — Kubo or Pinata"]
+  end
+
+  SPA --> Wallet
+  SPA -->|"/api/*"| Fn
+  SPA -.->|large files| PinataBrowser
+  PinataBrowser -.->|CID only| Fn
+  Fn --> Mongo
+  Fn --> RPC
+  Fn --> IPFS
+  Static --> SPA
 ```
 
-`RIPPLE_FEE_WALLET` is still the backend env name for the platform fee wallet. The product is now branded as Rivo, but the legacy env key remains in the code.
+### Purchase & unlock flow
 
-### Frontend
+```mermaid
+sequenceDiagram
+  participant Buyer
+  participant Web as web/ SPA
+  participant API as backend API
+  participant Chain as Solana
+  participant DB as MongoDB
+  participant IPFS as IPFS / Pinata
 
-Create `web/.env`:
+  Buyer->>Web: Open product page
+  Web->>API: GET /api/products/:id or /slug/:slug
+  API->>DB: Load product
+  API-->>Web: Product metadata + price
 
-```env
-VITE_API_URL=http://localhost:4000/api
-VITE_SOLANA_RPC=https://api.devnet.solana.com
-VITE_SOLANA_NETWORK=devnet
-VITE_PUSD_MINT_ADDRESS=6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY
-VITE_ANALYTICS_DASHBOARD_URL=
-# Optional: same Pinata JWT as backend — uploads go from the browser to Pinata (needed for large files on Vercel).
-# VITE_PINATA_JWT=
+  Buyer->>Web: Connect wallet + Pay
+  Web->>Chain: SPL or SOL transfer
+  Chain-->>Web: Transaction signature
+
+  Web->>API: POST /api/purchases/verify
+  API->>Chain: Verify transfer + amounts
+  API->>DB: Record purchase
+
+  Buyer->>Web: Unlock content
+  Web->>API: POST /api/access/unlock
+  API->>DB: Check purchase for wallet
+  API-->>Web: IPFS CIDs / download URLs
+  Web->>IPFS: Fetch gated files
+  IPFS-->>Buyer: Digital product delivery
 ```
 
-For Vercel, set `VITE_API_URL=/api` so the frontend calls the same-domain serverless API.
+### Production deployment (Vercel)
 
-**Large digital files (e.g. video):** Vercel limits how big a request body can be for serverless functions. Set **`VITE_PINATA_JWT`** to the same (or a scoped) Pinata JWT as **`PINATA_JWT`** so files upload **directly from the browser** to Pinata; the app then calls **`/api/digital-products/register-ipfs`** with only the CIDs (small JSON). Without `VITE_PINATA_JWT`, only smaller files may succeed through **`/api/digital-products/upload`**.
+```mermaid
+flowchart LR
+  User["User — rivolabs.app"]
 
-## Local Development
+  User -->|"/"| Static["web/dist/index.html"]
+  User -->|"/dashboard/*"| Static
+  User -->|"/api/*"| API["backend/api/index.js"]
 
-Install backend dependencies:
+  Static --> SPA["React client routes"]
+  API --> Express["Express app.js"]
+  Express --> Mongo[(MongoDB)]
+```
+
+**Routing (`vercel.json`):**
+
+| Request                    | Served by                   |
+| -------------------------- | --------------------------- |
+| `/api/*`                   | Serverless Express handler  |
+| Static files in `web/dist` | CDN (JS, CSS, assets)       |
+| Everything else            | `index.html` (SPA fallback) |
+
+---
+
+## Repository structure
+
+```text
+Ripple/
+├── web/                    # Frontend (Vite + React + TypeScript)
+│   ├── src/
+│   │   ├── App.tsx         # Routes, layout, landing, product pages
+│   │   ├── pages/dashboard/  # Creator dashboard pages
+│   │   ├── lib/            # API client, payments, IPFS upload helpers
+│   │   └── config/tokens.ts
+│   └── public/assets/      # Token logos, images
+├── backend/
+│   ├── src/app.js          # Express routes + MongoDB models
+│   ├── src/verifyTransfer.js
+│   └── api/index.js        # Vercel serverless entry
+├── programs/ripple/        # Anchor Rust program
+├── waitlist/               # Separate waitlist site + API
+├── vercel.json             # Deploy config
+├── Anchor.toml
+└── README.md
+```
+
+---
+
+## Tech stack
+
+| Layer               | Technologies                                                              |
+| ------------------- | ------------------------------------------------------------------------- |
+| Frontend            | React 19, TypeScript, Vite 7, React Router, Framer Motion, Tailwind CSS 4 |
+| Wallet              | `@solana/wallet-adapter-*`, Phantom                                       |
+| Backend             | Node.js, Express 5, Mongoose, Zod                                         |
+| Chain               | `@solana/web3.js`, SPL token transfers                                    |
+| Storage             | IPFS (Kubo local or Pinata JWT)                                           |
+| Deploy              | Vercel (static + serverless), Vercel Analytics                            |
+| On-chain (optional) | Anchor — `programs/ripple`                                                |
+
+---
+
+## Frontend routes
+
+| Path                           | Description                          |
+| ------------------------------ | ------------------------------------ |
+| `/`                            | Marketing landing (hero, coins, CTA) |
+| `/products`                    | Public marketplace listing           |
+| `/dashboard/home`              | Creator home                         |
+| `/dashboard/products`          | Manage products                      |
+| `/dashboard/products/new`      | Create product                       |
+| `/dashboard/products/:id/edit` | Edit product                         |
+| `/dashboard/payment`           | Payout wallet settings               |
+| `/dashboard/purchases`         | Purchase history                     |
+| `/dashboard/discover`          | Discover feed                        |
+| `/p/:id`                       | Public product by ID                 |
+| `/:slug`                       | Public product by slug               |
+
+Footer email signup posts to `POST /api/subscribers`.
+
+> **Note:** `DashboardAnalyticsPage` exists under `web/src/pages/dashboard/` and uses `/api/analytics/*`; wire a route in `App.tsx` if you want it in the nav.
+
+---
+
+## API reference
+
+All routes are prefixed with **`/api`**.
+
+### Health & config
+
+| Method | Route     | Purpose                                        |
+| ------ | --------- | ---------------------------------------------- |
+| `GET`  | `/health` | Health check (`ok`, Mongo, IPFS/Pinata status) |
+| `GET`  | `/tokens` | Runtime SPL mint addresses for checkout        |
+
+### Products
+
+| Method   | Route                         | Purpose                             |
+| -------- | ----------------------------- | ----------------------------------- |
+| `GET`    | `/products`                   | List published marketplace products |
+| `GET`    | `/products/creator/:wallet`   | Creator’s products                  |
+| `GET`    | `/products/slug/:slug`        | Product by slug                     |
+| `GET`    | `/products/:id`               | Product by ID                       |
+| `GET`    | `/products/:id/owner/:wallet` | Product for owner editing           |
+| `POST`   | `/products`                   | Create product                      |
+| `PUT`    | `/products/:id`               | Update product                      |
+| `POST`   | `/products/:id/publish`       | Publish product                     |
+| `DELETE` | `/products/:id`               | Delete product                      |
+
+### Purchases & access
+
+| Method | Route                        | Purpose                                         |
+| ------ | ---------------------------- | ----------------------------------------------- |
+| `POST` | `/purchases/verify`          | Verify on-chain payment and record purchase     |
+| `POST` | `/access/unlock`             | Return delivery payload after verified purchase |
+| `GET`  | `/download/:productId`       | Download metadata for buyer                     |
+| `GET`  | `/access/download-file`      | Stream purchased file (authenticated)           |
+| `GET`  | `/purchases/wallet/:wallet`  | Buyer purchase history                          |
+| `GET`  | `/purchases/creator/:wallet` | Creator sales history                           |
+
+### Creators & files
+
+| Method | Route                             | Purpose                                   |
+| ------ | --------------------------------- | ----------------------------------------- |
+| `GET`  | `/creators/:wallet/payout`        | Read payout wallet                        |
+| `POST` | `/creators/:wallet/payout`        | Update payout wallet                      |
+| `POST` | `/digital-products/upload`        | Upload file via API → IPFS                |
+| `POST` | `/digital-products/register-ipfs` | Register CIDs after browser Pinata upload |
+
+### Analytics & marketing
+
+| Method | Route                  | Purpose                    |
+| ------ | ---------------------- | -------------------------- |
+| `POST` | `/analytics/track`     | Record page visit          |
+| `GET`  | `/analytics/dashboard` | Aggregated visitor metrics |
+| `POST` | `/subscribers`         | Footer email signup        |
+
+---
+
+## Local development
+
+### Prerequisites
+
+- Node.js 20+
+- MongoDB (Atlas or local)
+- Solana wallet on **devnet** for testing
+- Optional: [Kubo IPFS](https://docs.ipfs.tech/install/) (`ipfs daemon`) for local uploads
+
+### 1. Backend
 
 ```bash
 cd backend
+cp .env.example .env   # fill in values
 npm install
 npm run dev
 ```
 
-The API runs on `http://localhost:4000/api`.
-
-Install frontend dependencies:
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-The frontend usually runs on `http://localhost:5173`.
+API base: `http://localhost:4000/api`
 
 Health check:
 
@@ -69,132 +286,143 @@ Health check:
 curl http://localhost:4000/api/health
 ```
 
-Expected response:
+Expected: `{ "ok": true, ... }`
 
-```json
-{ "ok": true }
+### 2. Frontend
+
+```bash
+cd web
+cp .env.example .env   # fill in values
+npm install
+npm run dev
 ```
 
-## IPFS Notes
+App: `http://localhost:5173`
 
-Product file upload calls `/api/digital-products/upload`, which uses the configured IPFS API. By default, the backend expects:
+### 3. Build frontend (production bundle)
 
-- IPFS API: `http://127.0.0.1:5001`
-- local gateway: `http://127.0.0.1:8081/ipfs`
-- fallback gateway: `https://ipfs.io/ipfs`
+```bash
+cd web
+npm run build
+# output: web/dist/
+```
 
-**Local dev without Pinata:** Run `ipfs daemon` (Kubo) so the API is reachable. In `backend/.env` set **`IPFS_LOCAL_ONLY=1`** to force Kubo-only uploads and gateway URLs; Pinata keys in the same file are then ignored (useful if you added `PINATA_JWT` for production but want localhost to behave like before). Remove or leave blank `PINATA_JWT` / `VITE_PINATA_JWT` when testing Kubo only.
+---
 
-Pinata env values are **trimmed**; an empty or whitespace-only `PINATA_JWT` does not enable Pinata.
+## Environment variables
 
-The backend stores the IPFS CID and delivery metadata, then returns download metadata after a verified purchase.
+### Backend — `backend/.env`
 
-## API Summary
+See `backend/.env.example`. Key variables:
 
-All routes are prefixed with `/api`.
+| Variable                                             | Purpose                                    |
+| ---------------------------------------------------- | ------------------------------------------ |
+| `PORT`                                               | Local server port (default `4000`)         |
+| `MONGODB_URI`                                        | MongoDB connection string                  |
+| `SOLANA_RPC`                                         | Solana JSON-RPC URL                        |
+| `CORS_ORIGINS`                                       | Allowed frontend origins (comma-separated) |
+| `RIPPLE_FEE_WALLET`                                  | Platform fee recipient (legacy env name)   |
+| `PUSD_MINT_ADDRESS` / `USDC_*` / `USDT_*` / `AUDD_*` | SPL mints for checkout                     |
+| `PINATA_JWT`                                         | Pinata uploads (production / Vercel)       |
+| `IPFS_LOCAL_ONLY=1`                                  | Force Kubo-only; ignore Pinata locally     |
+| `IPFS_API_*` / `IPFS_GATEWAY_*`                      | Local Kubo settings                        |
 
-| Method | Route                         | Purpose                                      |
-| ------ | ----------------------------- | -------------------------------------------- |
-| `GET`  | `/health`                     | API health check                             |
-| `GET`  | `/products`                   | List published marketplace products          |
-| `GET`  | `/products/creator/:wallet`   | List products for a creator                  |
-| `GET`  | `/products/slug/:slug`        | Load published product by slug               |
-| `GET`  | `/products/:id`               | Load published product by id                 |
-| `GET`  | `/products/:id/owner/:wallet` | Load product for owner editing               |
-| `POST` | `/products`                   | Create product                               |
-| `POST` | `/products/:id/publish`       | Publish product                              |
-| `PUT`  | `/products/:id`               | Update product                               |
-| `POST` | `/purchases/verify`           | Verify SOL transfer and record purchase      |
-| `POST` | `/access/unlock`              | Return delivery data after verified purchase |
-| `GET`  | `/download/:productId`        | Return IPFS download metadata for a buyer    |
-| `GET`  | `/purchases/wallet/:wallet`   | Buyer purchase history                       |
-| `GET`  | `/purchases/creator/:wallet`  | Creator sales history                        |
-| `GET`  | `/creators/:wallet/payout`    | Read creator payout wallet                   |
-| `POST` | `/creators/:wallet/payout`    | Update payout wallet across creator products |
-| `POST` | `/digital-products/upload`    | Upload one product file to IPFS              |
-| `POST` | `/analytics/track`            | Ingest a page-visit event                    |
-| `GET`  | `/analytics/dashboard`        | Aggregated visitor dashboard metrics         |
+### Frontend — `web/.env`
+
+See `web/.env.example`. Key variables:
+
+| Variable                       | Purpose                                                        |
+| ------------------------------ | -------------------------------------------------------------- |
+| `VITE_API_URL`                 | API base (`http://localhost:4000/api` local, `/api` on Vercel) |
+| `VITE_SOLANA_RPC`              | Must match backend cluster                                     |
+| `VITE_SOLANA_NETWORK`          | e.g. `devnet`                                                  |
+| `VITE_*_MINT_ADDRESS`          | Token mint overrides                                           |
+| `VITE_PINATA_JWT`              | Browser → Pinata direct upload (large files)                   |
+| `VITE_ANALYTICS_DASHBOARD_URL` | Optional external analytics link                               |
+
+---
+
+## IPFS & file uploads
+
+| Mode                 | When to use                              | Config                                                     |
+| -------------------- | ---------------------------------------- | ---------------------------------------------------------- |
+| **Local Kubo**       | Development                              | `ipfs daemon`, `IPFS_LOCAL_ONLY=1`, gateway on `:8081`     |
+| **Pinata (API)**     | Vercel / production                      | `PINATA_JWT` on backend                                    |
+| **Pinata (browser)** | Large files (> ~4.5 MB serverless limit) | `VITE_PINATA_JWT` + `POST /digital-products/register-ipfs` |
+
+Flow:
+
+1. Creator uploads file → IPFS CID stored on product.
+2. Buyer pays → backend verifies transaction.
+3. Buyer calls unlock → backend returns CIDs / URLs only if purchase exists.
+
+Treat public IPFS content as readable if the CID is known; gate access through verified purchases and unlock checks.
+
+---
 
 ## Deployment
 
-The root `vercel.json` deploys:
+Deployed via root **`vercel.json`**:
 
-- `web/` as the static frontend
-- `backend/api/index.js` as the serverless API
-- `/api/*` to the backend
-- all other routes to the SPA fallback
+| Setting | Value                                                      |
+| ------- | ---------------------------------------------------------- |
+| Install | `npm install --prefix web && npm install --prefix backend` |
+| Build   | `npm run build --prefix web`                               |
+| Output  | `web/dist`                                                 |
+| API     | `backend/api/index.js` (rewrites `/api/*`)                 |
 
-Required Vercel env vars:
+### Vercel dashboard (important)
+
+| Setting              | Value                                                              |
+| -------------------- | ------------------------------------------------------------------ |
+| **Root directory**   | Repository root (`.`) — not `web/` alone                           |
+| **Output directory** | `web/dist`                                                         |
+| **Build command**    | `npm run build --prefix web` (or leave blank to use `vercel.json`) |
+
+**Troubleshooting:** If the homepage shows Vercel `404: NOT_FOUND` but `GET /api/health` works, the API deployed without the static bundle — fix **Output directory** / **Root directory** and redeploy.
+
+### Required production env vars
 
 ```env
 MONGODB_URI=
 SOLANA_RPC=https://api.devnet.solana.com
-CORS_ORIGINS=https://your-domain.vercel.app
+CORS_ORIGINS=https://rivolabs.app,https://www.rivolabs.app
 RIPPLE_FEE_WALLET=
 PUSD_MINT_ADDRESS=
-# Product file uploads: use Pinata (recommended). Local IPFS (127.0.0.1) is not reachable from Vercel.
 PINATA_JWT=
-# Same Pinata JWT in frontend (browser upload for large files on Vercel)
 VITE_PINATA_JWT=
-# Optional: custom gateway (defaults to https://gateway.pinata.cloud/ipfs when Pinata is set)
-# IPFS_GATEWAY_URL=
 IPFS_GATEWAY_FALLBACK_URL=https://ipfs.io/ipfs
-# Legacy Pinata (if not using JWT): PINATA_API_KEY= + PINATA_API_SECRET=
-# Local Kubo only if the API is on a public host:
-# IPFS_API_HOST=
-# IPFS_API_PORT=
-# IPFS_API_PROTOCOL=
 VITE_API_URL=/api
 VITE_SOLANA_RPC=https://api.devnet.solana.com
 VITE_SOLANA_NETWORK=devnet
-VITE_ANALYTICS_DASHBOARD_URL=
 ```
 
-**Uploads on Vercel:** Add `PINATA_JWT` from [Pinata API keys](https://app.pinata.cloud/keys). Serverless routes have a **request body size limit** (often ~4.5 MB on Hobby); very large videos may need direct-to-Pinata uploads from the browser or a larger limit plan.
+### Post-deploy checklist
 
-Recommended project settings for fewer runtime issues:
+1. [ ] `GET /api/health` → `{ "ok": true }`
+2. [ ] Homepage loads (not Vercel 404)
+3. [ ] Wallet connects
+4. [ ] Creator can create & publish a product
+5. [ ] Public product page loads
+6. [ ] Checkout + verify + unlock works on devnet
+7. [ ] Purchase history visible for buyer and creator
+8. [ ] Footer email subscribe succeeds
 
-- Build command: `cd web && npm run build`
-- Output directory: `web/dist`
-- Install command: `npm install` (per project root)
-- Node.js runtime: 20.x
-- Production branch: `main`
+---
 
-Vercel analytics:
+## Anchor program
 
-- App-level analytics and Speed Insights are already mounted in `web/src/main.tsx`.
-- Vercel-hosted traffic reports appear in Vercel Dashboard -> Analytics.
-- In-app visitor dashboard is available at `/dashboard/analytics` (powered by `/api/analytics/*`).
-
-Post-deploy checks:
-
-1. `GET /api/health` returns `{ "ok": true }`.
-2. Wallet connects on the frontend.
-3. Creator can create and publish a product.
-4. Public product page loads by slug.
-5. Buyer can complete PUSD checkout (devnet).
-6. Backend verifies the transaction.
-7. Buyer unlocks the product.
-8. Creator and buyer history pages show the purchase.
-9. Open `/dashboard/analytics` and confirm page-view metrics are updating.
-
-## Anchor Program
-
-The repo includes a minimal Anchor program:
+Minimal program in `programs/ripple/` — transfers lamports from buyer to creator:
 
 ```rust
 pub fn purchase(ctx: Context<Purchase>, amount: u64) -> Result<()>
 ```
 
-It transfers lamports from the buyer signer to the creator account. The current web app does not route checkout through this program yet; it uses native `SystemProgram.transfer` and backend verification. The program is included as the base for a stricter on-chain purchase rail.
-
-Program id in `Anchor.toml`:
-
-```text
-EaEq7oukxo1VA75P5zr8jCVZjNesF7ZavWy2A9QKAqTp
-```
-
-Build/deploy when Anchor is installed:
+| Item         | Value                                                  |
+| ------------ | ------------------------------------------------------ |
+| Program ID   | `EaEq7oukxo1VA75P5zr8jCVZjNesF7ZavWy2A9QKAqTp`         |
+| MVP checkout | Native `SystemProgram.transfer` + backend verification |
+| Future       | Route checkout through Anchor `purchase` instruction   |
 
 ```bash
 anchor build
@@ -202,22 +430,36 @@ anchor keys list
 anchor deploy
 ```
 
-If building on a case-sensitive filesystem, confirm the workspace member path in `Cargo.toml` matches the actual program folder path.
+---
+
+## Waitlist app
+
+The **`waitlist/`** folder is a separate Vite app with its own `vercel.json` and `POST /api/waitlist` (name + email). Deploy it as its own Vercel project if you still use a pre-launch signup page.
+
+---
+
+## Security
+
+- Never commit `.env` files or secrets.
+- Rotate credentials if they were exposed.
+- Keep `VITE_SOLANA_RPC` and `SOLANA_RPC` on the same cluster.
+- Backend unlock and purchase checks are required — do not rely on hiding URLs alone.
+- Use scoped Pinata JWTs where possible.
+
+---
 
 ## Roadmap
 
-- Enable SPL token checkout for USDC.
-- Enable SPL token checkout for AUDD.
-- Move payment verification from native transfers to the Anchor program.
-- Add subscriptions and recurring access.
-- Add embedded checkout links for creators.
-- Add creator storefront pages.
-- Improve content encryption so buyer-side decryption uses a real per-purchase key flow.
+- [ ] Full SPL checkout for USDC / USDT / AUDD on mainnet
+- [ ] Route payments through Anchor `purchase` program
+- [ ] Subscriptions and recurring access
+- [ ] Embeddable checkout links
+- [ ] Per-creator storefront pages
+- [ ] Stronger per-purchase encryption for IPFS content
+- [ ] Dashboard analytics route in main nav
 
-## Security Notes
+---
 
-- Never commit real `.env` files.
-- Rotate any database credentials that were shared in plain text.
-- Keep frontend and backend Solana RPC URLs on the same cluster.
-- Treat public IPFS content as public; gate decryption metadata and access through verified purchases.
-- Backend unlock checks are required even if the public product page already knows the content URL.
+## License
+
+Private — see repository owner for terms.

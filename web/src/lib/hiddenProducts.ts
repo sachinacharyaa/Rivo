@@ -13,6 +13,12 @@ const HIDDEN_TITLES = new Set(
     "test3",
     "test1",
     "1000xdev",
+    "1000x",
+    "popchian",
+    "popchain",
+    "orion",
+    "jaggachain",
+    "carflix",
     "sadc",
   ].map((t) => t.trim().toLowerCase()),
 );

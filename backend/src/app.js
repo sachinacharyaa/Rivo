@@ -5,7 +5,6 @@ import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { z } from "zod";
 import multer from "multer";
 import crypto from "crypto";
-import { create } from "ipfs-http-client";
 import { verifySolTransfer, verifySplSplitTransfer } from "./verifyTransfer.js";
 import { Readable } from "node:stream";
 import path from "node:path";
@@ -35,8 +34,9 @@ const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
 let ipfsClient = null;
-function getLocalIpfs() {
+async function getLocalIpfs() {
   if (!ipfsClient) {
+    const { create } = await import("ipfs-http-client");
     ipfsClient = create({
       host: IPFS_HOST,
       port: IPFS_PORT,
@@ -233,7 +233,7 @@ async function addBufferToIpfs(buffer, fileName, mimeType) {
     err.code = "VERCEL_IPFS_NOT_CONFIGURED";
     throw err;
   }
-  const result = await getLocalIpfs().add(buffer);
+  const result = await (await getLocalIpfs()).add(buffer);
   return result.cid.toString();
 }
 

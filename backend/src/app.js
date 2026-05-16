@@ -31,8 +31,6 @@ const IPFS_GATEWAY_URL =
 const IPFS_GATEWAY_FALLBACK_URL = process.env.IPFS_GATEWAY_FALLBACK_URL || "https://ipfs.io/ipfs";
 const PUSD_MINT = process.env.PUSD_MINT_ADDRESS || "6r8BmwjTEqYKciEuye1QWN8LqEp4sHhRUDjj2Y23t2aY";
 const USDC_MINT = process.env.USDC_MINT_ADDRESS || "<USDC_MINT_ADDRESS>";
-const USDT_MINT = process.env.USDT_MINT_ADDRESS || "<USDT_MINT_ADDRESS>";
-const AUDD_MINT = process.env.AUDD_MINT_ADDRESS || "<AUDD_MINT_ADDRESS>";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
@@ -74,7 +72,7 @@ const productSchema = new mongoose.Schema(
     priceUsdc: { type: Number, default: 0 },
     priceUsdt: { type: Number, default: 0 },
     priceAudd: { type: Number, default: 0 },
-    currency: { type: String, enum: ["PUSD", "SOL", "USDC", "USDT", "AUDD"], default: "PUSD" },
+    currency: { type: String, enum: ["PUSD", "SOL", "USDC"], default: "PUSD" },
     contentUrl: { type: String, default: "" },
     deliveryMode: { type: String, enum: ["direct", "ipfs_encrypted"], default: "direct" },
     ipfsCid: { type: String, default: "" },
@@ -112,7 +110,7 @@ const purchaseSchema = new mongoose.Schema(
     buyerWallet: { type: String, required: true, index: true },
     txSignature: { type: String, required: true, unique: true },
     paymentMode: { type: String, enum: ["public", "private"], default: "public" },
-    currency: { type: String, enum: ["PUSD", "SOL", "USDC", "USDT", "AUDD"], default: "PUSD" },
+    currency: { type: String, enum: ["PUSD", "SOL", "USDC"], default: "PUSD" },
     amount: { type: Number, required: true },
     amountSol: { type: Number, default: 0 },
     status: { type: String, default: "confirmed" },
@@ -451,9 +449,7 @@ const createProductSchema = z
     price: z.number().min(0).optional(),
     priceSol: z.number().min(0),
     priceUsdc: z.number().min(0),
-    priceUsdt: z.number().min(0),
-    priceAudd: z.number().min(0),
-    currency: z.enum(["PUSD", "SOL", "USDC", "USDT", "AUDD"]).optional(),
+    currency: z.enum(["PUSD", "SOL", "USDC"]).optional(),
     contentUrl: z.string().url().optional(),
     deliveryMode: z.enum(["direct", "ipfs_encrypted"]).optional(),
     ipfsCid: z.string().max(120).optional(),
@@ -486,8 +482,6 @@ const createProductSchema = z
       const c = d.currency ?? "PUSD";
       if (c === "PUSD") return (d.price ?? 0) > 0;
       if (c === "USDC") return d.priceUsdc > 0;
-      if (c === "USDT") return d.priceUsdt > 0;
-      if (c === "AUDD") return d.priceAudd > 0;
       return d.priceSol > 0;
     },
     { message: "Price must be positive for the selected currency" },
@@ -512,9 +506,7 @@ const updateProductSchema = z
     price: z.number().min(0).optional(),
     priceSol: z.number().min(0).optional(),
     priceUsdc: z.number().min(0).optional(),
-    priceUsdt: z.number().min(0).optional(),
-    priceAudd: z.number().min(0).optional(),
-    currency: z.enum(["PUSD", "SOL", "USDC", "USDT", "AUDD"]).optional(),
+    currency: z.enum(["PUSD", "SOL", "USDC"]).optional(),
     contentUrl: z.string().url().optional(),
     deliveryMode: z.enum(["direct", "ipfs_encrypted"]).optional(),
     ipfsCid: z.string().max(120).optional(),
@@ -547,8 +539,6 @@ const updateProductSchema = z
       const c = d.currency ?? "PUSD";
       if (c === "PUSD") return (d.price ?? 0) > 0;
       if (c === "USDC") return (d.priceUsdc ?? 0) > 0;
-      if (c === "USDT") return (d.priceUsdt ?? 0) > 0;
-      if (c === "AUDD") return (d.priceAudd ?? 0) > 0;
       return (d.priceSol ?? 0) > 0;
     },
     { message: "Price must be positive for the selected currency" },
@@ -752,8 +742,6 @@ export function createApp() {
     return res.json({
       PUSD: { symbol: "PUSD", mint: PUSD_MINT, decimals: 6, isDefault: true },
       USDC: { symbol: "USDC", mint: USDC_MINT, decimals: 6 },
-      USDT: { symbol: "USDT", mint: USDT_MINT, decimals: 6 },
-      AUDD: { symbol: "AUDD", mint: AUDD_MINT, decimals: 6 },
       SOL: { symbol: "SOL", type: "native" },
     });
   });
@@ -879,8 +867,6 @@ export function createApp() {
         price: req.body.price ?? product.price ?? 0,
         priceSol: req.body.priceSol ?? product.priceSol,
         priceUsdc: req.body.priceUsdc ?? product.priceUsdc,
-        priceUsdt: req.body.priceUsdt ?? product.priceUsdt,
-        priceAudd: req.body.priceAudd ?? product.priceAudd,
         currency: req.body.currency ?? product.currency ?? "PUSD",
         contentUrl: req.body.contentUrl ?? product.contentUrl,
         deliveryMode: req.body.deliveryMode ?? product.deliveryMode ?? "direct",
@@ -914,8 +900,8 @@ export function createApp() {
       product.price = parsed.price ?? 0;
       product.priceSol = parsed.priceSol ?? 0;
       product.priceUsdc = parsed.priceUsdc ?? 0;
-      product.priceUsdt = parsed.priceUsdt ?? 0;
-      product.priceAudd = parsed.priceAudd ?? 0;
+      product.priceUsdt = 0;
+      product.priceAudd = 0;
       product.currency = parsed.currency ?? "PUSD";
       product.contentUrl = parsed.contentUrl ?? product.contentUrl;
       product.deliveryMode = parsed.deliveryMode ?? "direct";
@@ -983,11 +969,8 @@ export function createApp() {
     if (checkoutCurrency === "USDC" && (product.priceUsdc ?? 0) <= 0) {
       return res.status(400).json({ message: "This product has no USDC price" });
     }
-    if (checkoutCurrency === "USDT" && (product.priceUsdt ?? 0) <= 0) {
-      return res.status(400).json({ message: "This product has no USDT price" });
-    }
-    if (checkoutCurrency === "AUDD" && (product.priceAudd ?? 0) <= 0) {
-      return res.status(400).json({ message: "This product has no AUDD price" });
+    if (checkoutCurrency === "USDT" || checkoutCurrency === "AUDD") {
+      return res.status(400).json({ message: "This currency is no longer supported" });
     }
 
     // Convert SOL -> lamports deterministically (client uses the same 9-decimal approach).
@@ -1034,15 +1017,9 @@ export function createApp() {
         expectedFee.toString(),
       );
       if (!check.ok) return res.status(400).json({ message: check.reason || "PUSD verification failed" });
-    } else if (checkoutCurrency === "USDT" || checkoutCurrency === "USDC" || checkoutCurrency === "AUDD") {
-      const mintByCurrency = { USDT: USDT_MINT, USDC: USDC_MINT, AUDD: AUDD_MINT };
-      const humanByCurrency = {
-        USDT: product.priceUsdt ?? 0,
-        USDC: product.priceUsdc ?? 0,
-        AUDD: product.priceAudd ?? 0,
-      };
-      const mint = mintByCurrency[checkoutCurrency];
-      const human = humanByCurrency[checkoutCurrency];
+    } else if (checkoutCurrency === "USDC") {
+      const mint = USDC_MINT;
+      const human = product.priceUsdc ?? 0;
       if (human <= 0) {
         return res.status(400).json({ message: `This product has no ${checkoutCurrency} price` });
       }
@@ -1093,11 +1070,7 @@ export function createApp() {
             ? product.price
             : checkoutCurrency === "USDC"
               ? product.priceUsdc
-              : checkoutCurrency === "USDT"
-                ? product.priceUsdt
-                : checkoutCurrency === "AUDD"
-                  ? product.priceAudd
-                  : product.priceSol,
+              : product.priceSol,
         amountSol: checkoutCurrency === "SOL" ? product.priceSol : 0,
         status: "confirmed",
       });

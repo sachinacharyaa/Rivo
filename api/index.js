@@ -1,4 +1,4 @@
-import "dotenv/config";
+// Vercel injects env vars — do not import dotenv here (it lives in backend/ only).
 import { createApp } from "../backend/src/app.js";
 
 const app = createApp();

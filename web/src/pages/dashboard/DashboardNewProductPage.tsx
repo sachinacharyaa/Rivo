@@ -144,9 +144,7 @@ export function DashboardNewProductPage() {
         currency: draft.currency,
         price: smallestUnitPrice,
         priceSol: draft.currency === "SOL" ? price : 0,
-        priceUsdc: 0,
-        priceUsdt: draft.currency === "USDT" ? price : 0,
-        priceAudd: draft.currency === "AUDD" ? price : 0,
+        priceUsdc: draft.currency === "USDC" ? price : 0,
         productType: draft.productType,
         creatorWallet: wallet,
         payoutWallet: payoutWallet || undefined,
@@ -332,7 +330,7 @@ export function DashboardNewProductPage() {
 
   const previewProduct: Pick<
     ProductShape,
-    "currency" | "price" | "priceSol" | "priceUsdc" | "priceUsdt" | "priceAudd"
+    "currency" | "price" | "priceSol" | "priceUsdc"
   > = {
     currency: draft.currency,
     price:
@@ -340,9 +338,7 @@ export function DashboardNewProductPage() {
         ? Math.round((Number(draft.priceAmount) || 0) * 10 ** TOKENS.PUSD.decimals)
         : 0,
     priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
-    priceUsdc: 0,
-    priceUsdt: draft.currency === "USDT" ? Number(draft.priceAmount) || 0 : 0,
-    priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
+    priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
   };
 
   return (

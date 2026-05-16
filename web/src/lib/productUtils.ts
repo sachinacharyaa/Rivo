@@ -5,8 +5,6 @@ export type ProductCurrency = NonNullable<ProductShape["currency"]>;
 export const CRYPTO_OPTIONS = [
   { code: "PUSD" as const, label: "PUSD", symbol: "₱" },
   { code: "SOL" as const, label: "SOL (Solana)", symbol: "◎" },
-  { code: "USDT" as const, label: "USDT (Tether USD)", symbol: "$" },
-  { code: "AUDD" as const, label: "AUDD (Australian Digital Dollar)", symbol: "A$" },
 ];
 
 /** Shown only when editing a listing that still uses legacy USDC. */
@@ -28,7 +26,7 @@ export function currencyOptionsForProductEditor(currentCurrency: ProductCurrency
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-export const SUPPORTED_CURRENCIES: ProductCurrency[] = ["PUSD", "SOL", "USDT", "AUDD", "USDC"];
+export const SUPPORTED_CURRENCIES: ProductCurrency[] = ["PUSD", "SOL", "USDC"];
 
 const numberFormatters = new Map<string, Intl.NumberFormat>();
 
@@ -49,13 +47,11 @@ export function normalizeCurrency(currency?: ProductShape["currency"]): ProductC
 }
 
 export function getProductPriceAmount(
-  p: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceUsdt" | "priceAudd">,
+  p: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc">,
 ) {
   const c = normalizeCurrency(p.currency);
   if (c === "PUSD") return (p.price ?? 0) / 1_000_000;
   if (c === "USDC") return p.priceUsdc ?? 0;
-  if (c === "USDT") return p.priceUsdt ?? 0;
-  if (c === "AUDD") return p.priceAudd ?? 0;
   return p.priceSol ?? 0;
 }
 
@@ -66,7 +62,7 @@ export function formatTokenAmount(amount: number | null | undefined, currency: P
 }
 
 export function formatProductPrice(
-  p: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "priceUsdt" | "priceAudd">,
+  p: Pick<ProductShape, "currency" | "priceSol" | "priceUsdc" | "price">,
 ) {
   const c = normalizeCurrency(p.currency);
   return formatTokenAmount(getProductPriceAmount(p), c);

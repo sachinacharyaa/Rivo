@@ -15,7 +15,7 @@ type PurchaseRow = {
   amount?: number;
   amountSol?: number;
   productId?:
-    | Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceUsdt" | "priceAudd">
+    | Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc">
     | string
     | null;
   createdAt: string;
@@ -35,10 +35,7 @@ function purchaseAmountForCurrency(row: PurchaseRow, currency: ProductCurrency) 
   if (product) {
     if (currency === "PUSD") return rowCurrency === "PUSD" ? (product.price ?? 0) / 1_000_000 : 0;
     if (currency === "USDC") return rowCurrency === "USDC" ? product.priceUsdc ?? 0 : 0;
-    if (currency === "USDT") return rowCurrency === "USDT" ? product.priceUsdt ?? 0 : 0;
-    if (currency === "AUDD") return rowCurrency === "AUDD" ? product.priceAudd ?? 0 : 0;
-    if (rowCurrency === "PUSD" || rowCurrency === "USDC" || rowCurrency === "USDT" || rowCurrency === "AUDD")
-      return 0;
+    if (rowCurrency === "PUSD" || rowCurrency === "USDC") return 0;
     return product.priceSol ?? row.amountSol ?? 0;
   }
 

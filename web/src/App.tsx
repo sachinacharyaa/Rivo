@@ -369,7 +369,7 @@ function Home() {
           <div className="gr-tag bg-white">Core features</div>
           <h2 className="gr-title-huge">Everything you need to sell on-chain.</h2>
           <p className="gr-subtitle">
-            Pay with SOL, PUSD, USDT, or AUDD. Quick and seamless.
+            Pay with SOL or PUSD. Quick and seamless.
           </p>
           <div className="gr-grid-3 mt-16">
             {[
@@ -616,14 +616,8 @@ function ProductPage() {
       if (cur === "SOL" && (!Number.isFinite(product.priceSol) || (product.priceSol ?? 0) <= 0)) {
         throw new Error("Invalid SOL price for this product.");
       }
-      if (cur === "USDT" && (product.priceUsdt ?? 0) <= 0) {
-        throw new Error("Invalid USDT price for this product.");
-      }
       if (cur === "USDC" && (product.priceUsdc ?? 0) <= 0) {
         throw new Error("Invalid USDC price for this product.");
-      }
-      if (cur === "AUDD" && (product.priceAudd ?? 0) <= 0) {
-        throw new Error("Invalid AUDD price for this product.");
       }
 
       setStatus("Awaiting wallet approval...");
@@ -645,19 +639,13 @@ function ProductPage() {
           amount: Math.round(product.price ?? 0),
           creatorAddress,
         });
-      } else if (cur === "USDT" || cur === "USDC" || cur === "AUDD") {
+      } else if (cur === "USDC") {
         const { handleTokenPayment } = await import("./lib/tokenPayment");
-        const tokenCfg =
-          cur === "USDT"
-            ? { mint: TOKENS.USDT.mint, human: product.priceUsdt ?? 0, decimals: TOKENS.USDT.decimals }
-            : cur === "USDC"
-              ? { mint: TOKENS.USDC.mint, human: product.priceUsdc ?? 0, decimals: TOKENS.USDC.decimals }
-              : { mint: TOKENS.AUDD.mint, human: product.priceAudd ?? 0, decimals: TOKENS.AUDD.decimals };
         signature = await handleTokenPayment({
           connection,
           wallet: { publicKey, sendTransaction },
-          mintAddress: tokenCfg.mint,
-          amount: Math.round(tokenCfg.human * 10 ** tokenCfg.decimals),
+          mintAddress: TOKENS.USDC.mint,
+          amount: Math.round((product.priceUsdc ?? 0) * 10 ** TOKENS.USDC.decimals),
           creatorAddress,
         });
       } else {

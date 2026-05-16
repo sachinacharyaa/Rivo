@@ -7,9 +7,7 @@ import { formatProductPrice } from "../lib/productUtils";
 export const CURRENCY_LOGO_SRC: Partial<Record<ProductCurrency, string>> = {
   PUSD: "/assets/pusd-logo.png",
   USDC: "/assets/usdc-logo.png",
-  USDT: "/assets/usdt-logo.png",
   SOL: "/assets/sol-logo.png",
-  AUDD: "/assets/audd-logo.png",
 };
 
 export function CurrencyLogo({
@@ -54,7 +52,7 @@ export function ProductPriceWithLogo({
   product,
   className = "rivo-price-value",
 }: {
-  product: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc" | "priceUsdt" | "priceAudd">;
+  product: Pick<ProductShape, "currency" | "price" | "priceSol" | "priceUsdc">;
   className?: string;
 }) {
   const c = normalizeCurrency(product.currency);

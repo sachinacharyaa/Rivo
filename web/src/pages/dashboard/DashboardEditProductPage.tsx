@@ -48,17 +48,15 @@ export function DashboardEditProductPage() {
           name: p.title || "",
           description: p.description || "",
           productInfo: p.productInfo || "",
-          currency: (p.currency || "PUSD") as ProductCurrency,
+          currency: (
+            p.currency === "USDC" || p.currency === "SOL" ? p.currency : "PUSD"
+          ) as ProductCurrency,
           priceAmount: String(
             p.currency === "PUSD"
               ? (p.price ?? 0) / 10 ** TOKENS.PUSD.decimals
               : p.currency === "USDC"
                 ? p.priceUsdc ?? 0
-                : p.currency === "USDT"
-                  ? p.priceUsdt ?? 0
-                  : p.currency === "AUDD"
-                    ? p.priceAudd ?? 0
-                    : p.priceSol ?? 0,
+                : p.priceSol ?? 0,
           ),
           coverUrl: p.coverUrl || "",
         });
@@ -79,8 +77,6 @@ export function DashboardEditProductPage() {
           : 0,
       priceSol: draft.currency === "SOL" ? Number(draft.priceAmount) || 0 : 0,
       priceUsdc: draft.currency === "USDC" ? Number(draft.priceAmount) || 0 : 0,
-      priceUsdt: draft.currency === "USDT" ? Number(draft.priceAmount) || 0 : 0,
-      priceAudd: draft.currency === "AUDD" ? Number(draft.priceAmount) || 0 : 0,
     }),
     [draft.currency, draft.priceAmount],
   );
@@ -122,8 +118,6 @@ export function DashboardEditProductPage() {
         price: amountInSmallest,
         priceSol: draft.currency === "SOL" ? amount : 0,
         priceUsdc: draft.currency === "USDC" ? amount : 0,
-        priceUsdt: draft.currency === "USDT" ? amount : 0,
-        priceAudd: draft.currency === "AUDD" ? amount : 0,
         contentUrl: contentUrl,
         productType: productType,
         status,

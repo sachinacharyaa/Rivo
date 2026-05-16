@@ -26,11 +26,12 @@ export const TOKENS: RuntimeTokens = {
 
 export type CheckoutToken = keyof typeof TOKENS;
 
+import { resolveApiBase } from "../lib/api";
+
 export async function syncTokensFromBackend() {
-  const isProd = import.meta.env.PROD;
-  const base = import.meta.env.VITE_API_URL || (isProd ? "/api" : "http://localhost:4000/api");
+  const base = resolveApiBase();
   try {
-    const response = await fetch(`${base.replace(/\/$/, "")}/tokens`);
+    const response = await fetch(`${base}/tokens`);
     if (!response.ok) return;
     const data = (await response.json()) as Partial<RuntimeTokens>;
     if (data?.PUSD?.mint && data.PUSD.mint !== TOKENS.PUSD.mint) {

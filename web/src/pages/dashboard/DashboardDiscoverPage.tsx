@@ -19,12 +19,25 @@ export function DashboardDiscoverPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
+    setError("");
     api
       .get<ProductShape[]>("/products")
-      .then((res) => setProducts(res.data.filter((p) => isShownOnDiscover(p))))
-      .catch(() => setError("Unable to load products."))
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : [];
+        setProducts(list.filter((p) => isShownOnDiscover(p)));
+      })
+      .catch(() => {
+        if (!cancelled) setError("Unable to load products.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -77,7 +90,7 @@ export function DashboardDiscoverPage() {
             </div>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : error ? null : filtered.length === 0 ? (
         <div className="gum-empty">No published products yet.</div>
       ) : (
         <div className="gum-discover-grid">

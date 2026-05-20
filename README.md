@@ -34,7 +34,7 @@
 Rivo lets creators:
 
 1. Connect a Solana wallet (e.g. Phantom).
-2. Create and publish digital products with a price in **PUSD**, **USDC**, **USDT**, **AUDD**, or **SOL**.
+2. Create and publish digital products with a price in **PUSD**, **USDC** (legacy listings), or **SOL**.
 3. Upload delivery files to **IPFS** (local Kubo or Pinata).
 4. Share a public product URL (`/p/:id` or `/:slug`).
 5. Receive payment when a buyer completes checkout; the backend **verifies the transaction** on-chain before unlocking access.
@@ -51,7 +51,8 @@ Buyers browse the marketplace, pay from their wallet, and unlock gated content i
 | **`backend/`**         | Express API — products, purchases, IPFS uploads, analytics, email subscribers                                  |
 | **`programs/ripple/`** | Anchor program (`purchase`) — optional on-chain SOL transfer rail (MVP uses native transfers + backend verify) |
 | **`waitlist/`**        | Standalone waitlist landing + MongoDB signup (separate deploy)                                                 |
-| **`vercel.json`**      | Monorepo deploy: static `web/dist` + serverless `backend/api`                                                  |
+| **`api/index.js`**     | Vercel serverless entry (re-exports `backend/api/index.js`)                                                    |
+| **`vercel.json`**      | Monorepo deploy: static `web/dist` + serverless `api/index.js`                                                 |
 
 ---
 
@@ -69,7 +70,7 @@ flowchart TB
 
   subgraph Vercel["Vercel (production)"]
     Static["web/dist — static assets"]
-    Fn["backend/api/index.js — serverless"]
+    Fn["api/index.js → backend — serverless"]
   end
 
   subgraph Data["External services"]
@@ -120,6 +121,34 @@ sequenceDiagram
   IPFS-->>Buyer: Digital product delivery
 ```
 
+### How stablecoins like PUSD work in Rivo
+
+Rivo natively supports **PUSD** (Paypal USD) alongside **USDC** and **SOL** for checkout. The stablecoin integration is fully decentralized and non-custodial.
+
+1. **Pricing setup:** Creators price their items in PUSD.
+2. **Token Accounts:** When a buyer clicks "Buy now", the frontend checks if the buyer has a PUSD Associated Token Account (ATA) with enough balance.
+3. **Transaction Execution:** Rivo builds an SPL token transfer instruction that moves PUSD directly from the buyer's ATA to the creator's payout ATA.
+4. **Platform Fee:** A small percentage fee is routed to the platform treasury in the same transaction using a separate transfer instruction.
+5. **Backend Verification:** After the Solana network confirms the transaction, the buyer's client sends the tx signature to the backend. The backend validates the block, verifies the token mint address (to prevent fake PUSD), checks the transferred amount, and ensures the creator was paid before unlocking content.
+
+```mermaid
+sequenceDiagram
+  participant Buyer
+  participant Rivo Web
+  participant Solana
+  participant Creator ATA
+  participant Platform ATA
+
+  Buyer->>Rivo Web: Clicks "Buy Now" (PUSD)
+  Rivo Web->>Rivo Web: Fetch/Compute ATAs & fees
+  Rivo Web->>Solana: Submit SPL Token Transfer
+  Solana->>Creator ATA: Transfer Creator's Share (e.g. 95%)
+  Solana->>Platform ATA: Transfer Platform Fee (e.g. 5%)
+  Solana-->>Rivo Web: Return Tx Signature
+  Rivo Web->>Backend API: Verify Signature
+```
+
+
 ### Production deployment (Vercel)
 
 ```mermaid
@@ -128,7 +157,7 @@ flowchart LR
 
   User -->|"/"| Static["web/dist/index.html"]
   User -->|"/dashboard/*"| Static
-  User -->|"/api/*"| API["backend/api/index.js"]
+  User -->|"/api/*"| API["api/index.js → backend"]
 
   Static --> SPA["React client routes"]
   API --> Express["Express app.js"]
@@ -156,10 +185,12 @@ Ripple/
 │   │   ├── lib/            # API client, payments, IPFS upload helpers
 │   │   └── config/tokens.ts
 │   └── public/assets/      # Token logos, images
+├── api/
+│   └── index.js            # Vercel serverless entry (re-exports backend)
 ├── backend/
 │   ├── src/app.js          # Express routes + MongoDB models
 │   ├── src/verifyTransfer.js
-│   └── api/index.js        # Vercel serverless entry
+│   └── api/index.js        # Express handler used by api/index.js
 ├── programs/ripple/        # Anchor Rust program
 ├── waitlist/               # Separate waitlist site + API
 ├── vercel.json             # Deploy config
@@ -322,7 +353,7 @@ See `backend/.env.example`. Key variables:
 | `SOLANA_RPC`                                         | Solana JSON-RPC URL                        |
 | `CORS_ORIGINS`                                       | Allowed frontend origins (comma-separated) |
 | `RIPPLE_FEE_WALLET`                                  | Platform fee recipient (legacy env name)   |
-| `PUSD_MINT_ADDRESS` / `USDC_*` / `USDT_*` / `AUDD_*` | SPL mints for checkout                     |
+| `PUSD_MINT_ADDRESS` / `USDC_MINT_ADDRESS`              | SPL mints for checkout                     |
 | `PINATA_JWT`                                         | Pinata uploads (production / Vercel)       |
 | `IPFS_LOCAL_ONLY=1`                                  | Force Kubo-only; ignore Pinata locally     |
 | `IPFS_API_*` / `IPFS_GATEWAY_*`                      | Local Kubo settings                        |
@@ -369,7 +400,7 @@ Deployed via root **`vercel.json`**:
 | Install | `npm install --prefix web && npm install --prefix backend` |
 | Build   | `npm run build --prefix web`                               |
 | Output  | `web/dist`                                                 |
-| API     | `backend/api/index.js` (rewrites `/api/*`)                 |
+| API     | `api/index.js` → `backend/api/index.js` (rewrites `/api/*`) |
 
 ### Vercel dashboard (important)
 
@@ -450,7 +481,7 @@ The **`waitlist/`** folder is a separate Vite app with its own `vercel.json` and
 
 ## Roadmap
 
-- [ ] Full SPL checkout for USDC / USDT / AUDD on mainnet
+- [ ] Full SPL checkout for stablecoins on mainnet
 - [ ] Route payments through Anchor `purchase` program
 - [ ] Subscriptions and recurring access
 - [ ] Embeddable checkout links

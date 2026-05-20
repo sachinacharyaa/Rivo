@@ -123,13 +123,13 @@ sequenceDiagram
 
 ### How stablecoins like PUSD work in Rivo
 
-Rivo natively supports **PUSD** (Paypal USD) alongside **USDC** and **SOL** for checkout. The stablecoin integration is fully decentralized and non-custodial.
+Rivo natively supports **PUSD** (PALM USD) alongside **USDC** and **SOL** for checkout. The stablecoin integration is fully decentralized and non-custodial.
 
 1. **Pricing setup:** Creators price their items in PUSD.
 2. **Token Accounts:** When a buyer clicks "Buy now", the frontend checks if the buyer has a PUSD Associated Token Account (ATA) with enough balance.
 3. **Transaction Execution:** Rivo builds an SPL token transfer instruction that moves PUSD directly from the buyer's ATA to the creator's payout ATA.
 4. **Platform Fee:** A small percentage fee is routed to the platform treasury in the same transaction using a separate transfer instruction.
-5. **Backend Verification:** After the Solana network confirms the transaction, the buyer's client sends the tx signature to the backend. The backend validates the block, verifies the token mint address (to prevent fake PUSD), checks the transferred amount, and ensures the creator was paid before unlocking content.
+5. **Backend Verification:** After Solana network confirms the transaction, the buyer's client sends the tx signature to the backend. The backend validates the block, verifies the token mint address (to prevent fake PUSD), checks the transferred amount, and ensures the creator was paid before unlocking content.
 
 ```mermaid
 sequenceDiagram

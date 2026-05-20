@@ -177,7 +177,7 @@ function Layout({
           <Link to="/" className="logo">
             Rivo
           </Link>
-          <span className="badge">Solana native</span>
+          <span className="badge">devnet</span>
         </div>
         <nav className="nav-links">
           {isHome ? (

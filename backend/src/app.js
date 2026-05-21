@@ -611,8 +611,14 @@ export function createApp() {
   // and make Vercel look like a broken deployment (FUNCTION_INVOCATION_FAILED / timeouts).
   app.get("/api/health", async (_req, res) => {
     const body = { ok: true, mongoConfigured: Boolean(String(process.env.MONGODB_URI || "").trim()) };
+    body.pinataConfigured = USE_PINATA_UPLOAD;
     if (USE_PINATA_UPLOAD) {
       body.uploads = "pinata";
+      body.ipfsGateway = IPFS_GATEWAY_URL;
+    } else if (process.env.VERCEL) {
+      body.uploads = "misconfigured";
+      body.uploadHint =
+        "On Vercel set PINATA_JWT (and redeploy). For large files also set VITE_PINATA_JWT at build time. Do not set IPFS_LOCAL_ONLY.";
     } else {
       body.uploads = "kubo";
       body.kuboApi = `${IPFS_PROTOCOL}://${IPFS_HOST}:${IPFS_PORT}`;
@@ -630,8 +636,8 @@ export function createApp() {
         body.kuboReachable = false;
         const code = e?.cause?.code || e?.code;
         body.kuboError = code || e?.name || String(e.message || e).slice(0, 160);
-        body.kuboHint =
-          "Product uploads need Kubo running: `ipfs daemon` (API default :5001). Or use Pinata: set PINATA_JWT, remove IPFS_LOCAL_ONLY from backend/.env, optionally VITE_PINATA_JWT in web/.env.";
+        body.uploadHint =
+          "Product uploads need Kubo running: `ipfs daemon` (API default :5001). Or set PINATA_JWT in backend/.env.";
       }
     }
     body.subscribersMongoConfigured = Boolean(String(process.env.SUBSCRIBERS_MONGODB_URI || "").trim());

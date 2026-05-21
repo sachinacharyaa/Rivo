@@ -738,6 +738,83 @@ export function createApp() {
     }
   });
 
+  app.get("/api/admin/leaderboard", async (req, res) => {
+    try {
+      const adminWallet = req.query.wallet;
+      if (adminWallet !== "6jaM7rGsMgk81pogFqMAGj7K8AByW8tQTTEnmDYFQpbH") {
+        return res.status(403).json({ message: "Forbidden: Not admin" });
+      }
+
+      // Aggregate purchases by product
+      const leaderboard = await Purchase.aggregate([
+        { $match: { status: "confirmed" } },
+        { 
+          $group: { 
+            _id: "$productId", 
+            totalRevenueUsd: { $sum: "$amount" },
+            totalRevenueSol: { $sum: "$amountSol" },
+            buyersCount: { $sum: 1 } 
+          } 
+        },
+        { $sort: { buyersCount: -1 } },
+        { $limit: 10 }
+      ]);
+
+      const HIDDEN_TITLES = new Set(
+        [
+          "pinte",
+          "test0",
+          "hero1",
+          "faizer",
+          "oops project",
+          "test5",
+          "test3",
+          "test1",
+          "1000xdev",
+          "1000x",
+          "popchian",
+          "popchain",
+          "orion",
+          "jaggachain",
+          "carflix",
+          "sadc",
+        ].map((t) => t.trim().toLowerCase())
+      );
+
+      const populatedLeaderboard = await Product.populate(leaderboard, { path: "_id", select: "title price priceSol coverUrl status" });
+      
+      const formattedLeaderboard = populatedLeaderboard
+        .filter(item => {
+          const product = item._id;
+          if (!product) return false;
+          if (product.status === "draft") return false;
+          const title = String(product.title ?? "").trim().toLowerCase();
+          if (!title || HIDDEN_TITLES.has(title)) return false;
+          return true;
+        })
+        .map(item => ({
+          product: item._id,
+          totalRevenueUsd: item.totalRevenueUsd,
+          totalRevenueSol: item.totalRevenueSol,
+          buyersCount: item.buyersCount
+        }));
+
+      const totalPlatformRevenueUsd = formattedLeaderboard.reduce((acc, curr) => acc + (curr.totalRevenueUsd * 0.01), 0);
+      const totalPlatformRevenueSol = formattedLeaderboard.reduce((acc, curr) => acc + (curr.totalRevenueSol * 0.01), 0);
+      const totalPurchases = formattedLeaderboard.reduce((acc, curr) => acc + curr.buyersCount, 0);
+
+      return res.json({
+        totalPlatformRevenueUsd,
+        totalPlatformRevenueSol,
+        totalPurchases,
+        topProducts: formattedLeaderboard
+      });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ message: "Failed to load admin leaderboard" });
+    }
+  });
+
   app.get("/api/tokens", (_req, res) => {
     return res.json({
       PUSD: { symbol: "PUSD", mint: PUSD_MINT, decimals: 6, isDefault: true },

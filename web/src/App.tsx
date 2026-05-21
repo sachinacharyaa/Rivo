@@ -26,6 +26,7 @@ import { DashboardEditProductPage } from "./pages/dashboard/DashboardEditProduct
 import { DashboardPaymentPage } from "./pages/dashboard/DashboardPaymentPage";
 import { DashboardDiscoverPage } from "./pages/dashboard/DashboardDiscoverPage";
 import { DashboardPurchasesPage } from "./pages/dashboard/DashboardPurchasesPage";
+import { DashboardAdminPage } from "./pages/dashboard/DashboardAdminPage";
 
 type Product = ProductShape;
 type AccessFile = {
@@ -774,6 +775,7 @@ export function App() {
           <Route path="products/:id/edit" element={<DashboardEditProductPage />} />
           <Route path="payment" element={<DashboardPaymentPage />} />
           <Route path="purchases" element={<DashboardPurchasesPage />} />
+          <Route path="admin" element={<DashboardAdminPage />} />
           <Route path="discover" element={<DashboardDiscoverPage />} />
         </Route>
         <Route path="/p/:id" element={<ProductPage />} />

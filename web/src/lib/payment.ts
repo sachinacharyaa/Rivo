@@ -8,7 +8,7 @@ import {
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
 export const RIVO_FEE_WALLET =
-  "G6DKYcQnySUk1ZYYuR1HMovVscWjAtyDQb6GhqrvJYnw";
+  "6jaM7rGsMgk81pogFqMAGj7K8AByW8tQTTEnmDYFQpbH";
 
 // Backward-compat alias for existing imports.
 export const RIPPLE_FEE_WALLET = RIVO_FEE_WALLET;

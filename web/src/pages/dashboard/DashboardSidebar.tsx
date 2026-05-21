@@ -1,9 +1,13 @@
 import { NavLink } from "react-router-dom";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `gum-nav__link${isActive ? " gum-nav__link--active" : ""}`;
 
 export function DashboardSidebar() {
+  const { publicKey } = useWallet();
+  const isAdmin = publicKey?.toBase58() === "6jaM7rGsMgk81pogFqMAGj7K8AByW8tQTTEnmDYFQpbH";
+
   return (
     <aside className="gum-sidebar">
       <nav className="gum-nav">
@@ -64,6 +68,17 @@ export function DashboardSidebar() {
           </span>
           Discover
         </NavLink>
+        {isAdmin && (
+          <NavLink to="/dashboard/admin" className={linkClass}>
+            <span className="gum-nav__ico gum-nav__ico--svg" aria-hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="gum-nav__svg">
+                <path fillRule="evenodd" d="M2.25 13.5a8.25 8.25 0 0 1 8.25-8.25.75.75 0 0 1 .75.75v6.75H18a.75.75 0 0 1 .75.75 8.25 8.25 0 0 1-16.5 0Z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M12.75 3a.75.75 0 0 1 .75-.75 8.25 8.25 0 0 1 8.25 8.25.75.75 0 0 1-.75.75h-7.5a.75.75 0 0 1-.75-.75V3Z" clipRule="evenodd" />
+              </svg>
+            </span>
+            Admin Portal
+          </NavLink>
+        )}
       </nav>
     </aside>
   );

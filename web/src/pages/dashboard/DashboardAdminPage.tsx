@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../lib/api";
 import { fetchSolUsdPrice, solToUsd } from "../../lib/solPrice";
@@ -85,7 +85,7 @@ export function DashboardAdminPage() {
   }, []);
 
   useEffect(() => {
-    const close = (e: MouseEvent) => {
+    const close = (e: Event) => {
       if (!revenueMenuRef.current?.contains(e.target as Node)) setRevenueMenuOpen(false);
     };
     document.addEventListener("click", close);
@@ -257,7 +257,7 @@ function AdminMetricSelectCard<T extends string>({
 }: {
   menuRef: RefObject<HTMLDivElement | null>;
   menuOpen: boolean;
-  onToggleMenu: (e: MouseEvent) => void;
+  onToggleMenu: (e: ReactMouseEvent) => void;
   menuLabel: string;
   triggerLabel: string;
   value: string;

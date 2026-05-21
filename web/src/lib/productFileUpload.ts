@@ -1,9 +1,13 @@
 import { api } from "./api";
-import {
-  getPinataBrowserJwt,
-  uploadFilesViaPinataBrowser,
-  type PinataRegisteredFile,
-} from "./pinataClientUpload";
+import { getPinataBrowserJwt, uploadFilesViaPinataBrowser } from "./pinataClientUpload";
+
+export type DeliveryFileResponse = {
+  ipfsCid: string;
+  fileName: string;
+  mimeType: string;
+  downloadUrl?: string;
+  backupUrl?: string;
+};
 
 export type DigitalProductUploadResponse = {
   deliveryMode: string;
@@ -14,7 +18,7 @@ export type DigitalProductUploadResponse = {
   mimeType: string;
   downloadUrl?: string;
   backupUrl?: string;
-  files?: PinataRegisteredFile[];
+  files?: DeliveryFileResponse[];
 };
 
 const HOSTED_UPLOAD_HELP =

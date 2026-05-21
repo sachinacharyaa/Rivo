@@ -12,24 +12,6 @@ import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
 import { uploadProductDeliveryFiles } from "../../lib/productFileUpload";
 
-type DigitalProductUploadResponse = {
-  deliveryMode: "ipfs_encrypted";
-  ipfsCid: string;
-  downloadUrl: string;
-  backupUrl: string;
-  encryptedContentKey: string;
-  encryptionAlgorithm: string;
-  fileName: string;
-  mimeType: string;
-  files: {
-    ipfsCid: string;
-    downloadUrl: string;
-    backupUrl: string;
-    fileName: string;
-    mimeType: string;
-  }[];
-};
-
 const PRODUCT_TYPES = [
   { id: "digital", title: "Digital product", desc: "Files, templates, presets, or downloads.", emoji: "📦" },
   { id: "course", title: "Course or tutorial", desc: "Structured lessons buyers unlock.", emoji: "🎓" },

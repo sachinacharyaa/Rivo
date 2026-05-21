@@ -745,21 +745,6 @@ export function createApp() {
         return res.status(403).json({ message: "Forbidden: Not admin" });
       }
 
-      // Aggregate purchases by product
-      const leaderboard = await Purchase.aggregate([
-        { $match: { status: "confirmed" } },
-        { 
-          $group: { 
-            _id: "$productId", 
-            totalRevenueUsd: { $sum: "$amount" },
-            totalRevenueSol: { $sum: "$amountSol" },
-            buyersCount: { $sum: 1 } 
-          } 
-        },
-        { $sort: { buyersCount: -1 } },
-        { $limit: 10 }
-      ]);
-
       const HIDDEN_TITLES = new Set(
         [
           "pinte",
@@ -778,36 +763,124 @@ export function createApp() {
           "jaggachain",
           "carflix",
           "sadc",
-        ].map((t) => t.trim().toLowerCase())
+        ].map((t) => t.trim().toLowerCase()),
       );
 
-      const populatedLeaderboard = await Product.populate(leaderboard, { path: "_id", select: "title price priceSol coverUrl status" });
-      
-      const formattedLeaderboard = populatedLeaderboard
-        .filter(item => {
-          const product = item._id;
-          if (!product) return false;
-          if (product.status === "draft") return false;
-          const title = String(product.title ?? "").trim().toLowerCase();
-          if (!title || HIDDEN_TITLES.has(title)) return false;
-          return true;
-        })
-        .map(item => ({
+      const isListedProduct = (product) => {
+        if (!product) return false;
+        if (product.status === "draft") return false;
+        const title = String(product.title ?? "").trim().toLowerCase();
+        if (!title || HIDDEN_TITLES.has(title)) return false;
+        return true;
+      };
+
+      const byProduct = await Purchase.aggregate([
+        { $match: { status: "confirmed" } },
+        {
+          $group: {
+            _id: "$productId",
+            totalRevenueUsd: {
+              $sum: {
+                $cond: [{ $in: ["$currency", ["PUSD", "USDC"]] }, "$amount", 0],
+              },
+            },
+            totalRevenueSol: {
+              $sum: {
+                $cond: [{ $eq: ["$currency", "SOL"] }, "$amountSol", 0],
+              },
+            },
+            buyersCount: { $sum: 1 },
+          },
+        },
+        { $sort: { buyersCount: -1 } },
+      ]);
+
+      const populated = await Product.populate(byProduct, {
+        path: "_id",
+        select: "title price priceSol coverUrl status",
+      });
+
+      const formatted = populated
+        .filter((item) => isListedProduct(item._id))
+        .map((item) => ({
           product: item._id,
-          totalRevenueUsd: item.totalRevenueUsd,
-          totalRevenueSol: item.totalRevenueSol,
-          buyersCount: item.buyersCount
+          totalRevenueUsd: item.totalRevenueUsd || 0,
+          totalRevenueSol: item.totalRevenueSol || 0,
+          buyersCount: item.buyersCount || 0,
         }));
 
-      const totalPlatformRevenueUsd = formattedLeaderboard.reduce((acc, curr) => acc + (curr.totalRevenueUsd * 0.01), 0);
-      const totalPlatformRevenueSol = formattedLeaderboard.reduce((acc, curr) => acc + (curr.totalRevenueSol * 0.01), 0);
-      const totalPurchases = formattedLeaderboard.reduce((acc, curr) => acc + curr.buyersCount, 0);
+      const sumGrossUsd = formatted.reduce((acc, row) => acc + row.totalRevenueUsd, 0);
+      const sumGrossSol = formatted.reduce((acc, row) => acc + row.totalRevenueSol, 0);
+      const totalPlatformRevenueUsd = sumGrossUsd * 0.01;
+      const totalPlatformRevenueSol = sumGrossSol * 0.01;
+      const totalPurchases = formatted.reduce((acc, row) => acc + row.buyersCount, 0);
+
+      const platformRevenueUsdByProduct = formatted
+        .filter((row) => row.totalRevenueUsd > 0)
+        .map((row) => ({
+          productId: String(row.product._id),
+          productTitle: row.product.title,
+          buyersCount: row.buyersCount,
+          gross: row.totalRevenueUsd,
+          platformFee: row.totalRevenueUsd * 0.01,
+        }))
+        .sort((a, b) => b.platformFee - a.platformFee);
+
+      const platformRevenueSolByProduct = formatted
+        .filter((row) => row.totalRevenueSol > 0)
+        .map((row) => ({
+          productId: String(row.product._id),
+          productTitle: row.product.title,
+          buyersCount: row.buyersCount,
+          gross: row.totalRevenueSol,
+          platformFee: row.totalRevenueSol * 0.01,
+        }))
+        .sort((a, b) => b.platformFee - a.platformFee);
+
+      const recentPurchases = await Purchase.find({ status: "confirmed" })
+        .populate("productId", "title status")
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .lean();
+
+      const mapPurchaseRow = (p) => {
+        const product = p.productId;
+        if (!isListedProduct(product)) return null;
+        const isSol = p.currency === "SOL";
+        const gross = isSol ? p.amountSol || 0 : p.amount || 0;
+        if (gross <= 0) return null;
+        return {
+          buyerWallet: p.buyerWallet,
+          productTitle: product.title,
+          currency: p.currency,
+          gross,
+          platformFee: gross * 0.01,
+          createdAt: p.createdAt,
+        };
+      };
+
+      const recentUsdPurchases = recentPurchases
+        .filter((p) => p.currency === "PUSD" || p.currency === "USDC")
+        .map(mapPurchaseRow)
+        .filter(Boolean);
+      const recentSolPurchases = recentPurchases
+        .filter((p) => p.currency === "SOL")
+        .map(mapPurchaseRow)
+        .filter(Boolean);
 
       return res.json({
         totalPlatformRevenueUsd,
         totalPlatformRevenueSol,
+        totalProductSalesUsd: sumGrossUsd,
+        totalProductSalesSol: sumGrossSol,
+        totalRivoSalesUsd: totalPlatformRevenueUsd,
+        totalRivoSalesSol: totalPlatformRevenueSol,
         totalPurchases,
-        topProducts: formattedLeaderboard
+        topProducts: formatted.slice(0, 10),
+        platformRevenueUsdByProduct,
+        platformRevenueSolByProduct,
+        recentUsdPurchases,
+        recentSolPurchases,
       });
     } catch (e) {
       console.error(e);

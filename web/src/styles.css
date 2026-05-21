@@ -2322,6 +2322,16 @@ textarea {
   position: relative;
 }
 
+.gum-activity-currency__trigger--wide {
+  max-width: min(320px, 100%);
+}
+
+.gum-activity-currency__trigger--wide span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .gum-activity-currency__trigger {
   display: inline-flex;
   align-items: center;
@@ -2456,9 +2466,82 @@ textarea {
   gap: 14px;
 }
 
+.gum-activity-row--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.gum-activity-row--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.gum-metric-card--select {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gum-activity-currency--in-card {
+  width: 100%;
+}
+
+.gum-activity-currency__trigger--card {
+  width: 100%;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 0;
+  border: none;
+  background: transparent;
+  min-height: auto;
+}
+
+.gum-activity-currency__trigger--card:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.gum-activity-currency--in-card .gum-activity-currency__menu {
+  left: 0;
+  right: 0;
+  min-width: 100%;
+}
+
+.gum-metric-card--span {
+  grid-column: span 1;
+}
+
+.gum-admin-breakdown {
+  margin-top: 1.25rem;
+}
+
+.gum-admin-breakdown__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 0.75rem;
+}
+
+.gum-admin-trade-stack {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
 @media (max-width: 900px) {
-  .gum-activity-row {
+  .gum-activity-row,
+  .gum-activity-row--2,
+  .gum-activity-row--3,
+  .gum-admin-trade-stack {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .gum-activity-row,
+  .gum-activity-row--2,
+  .gum-activity-row--3,
+  .gum-admin-trade-stack {
+    grid-template-columns: 1fr;
   }
 }
 

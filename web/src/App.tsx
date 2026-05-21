@@ -39,16 +39,16 @@ type AccessFile = {
 type AccessPayload =
   | { mode: "direct"; contentUrl: string; fileName?: string; mimeType?: string; files?: AccessFile[] }
   | {
-      mode: "ipfs_encrypted";
-      ipfsCid: string;
-      downloadUrl?: string;
-      backupUrl?: string;
-      encryptedContentKey: string;
-      encryptionAlgorithm?: string;
-      fileName?: string;
-      mimeType?: string;
-      files?: AccessFile[];
-    };
+    mode: "ipfs_encrypted";
+    ipfsCid: string;
+    downloadUrl?: string;
+    backupUrl?: string;
+    encryptedContentKey: string;
+    encryptionAlgorithm?: string;
+    fileName?: string;
+    mimeType?: string;
+    files?: AccessFile[];
+  };
 
 function Coins() {
   useEffect(() => {
@@ -236,8 +236,8 @@ function Layout({
               </div>
               <div className="gr-footer-col">
                 <strong>Socials</strong>
-                <a href="#">Twitter / X</a>
-                <a href="#">Discord</a>
+                <a href="https://x.com/rivolabsxyz" target="_blank" rel="noreferrer">Twitter / X</a>
+                <a href="https://discord.gg/THpac3zG5" target="_blank" rel="noreferrer">Discord</a>
               </div>
               <FooterEmailSignup />
             </div>
@@ -247,6 +247,7 @@ function Layout({
     </div>
   );
 }
+
 
 function Home() {
   return (
@@ -283,149 +284,6 @@ function Home() {
           </div>
         </div>
       </section>
-
-      {/* <section className="gr-section bg-yellow" id="features">
-        <div className="gr-container">
-          <div className="gr-tag bg-pink">Vision</div>
-          <h2 className="gr-title-huge">A creator-first<br />Solana marketplace.</h2>
-          <p className="gr-subtitle">
-            Rivo removes platform lock-in so creators can sell anything,
-            anywhere, and get paid instantly with crypto.
-          </p>
-          <div className="gr-grid-3 mt-16">
-            <div className="gr-card">
-              <div className="gr-card-content">
-                <div className="gr-icon-box bg-pink">⛔</div>
-                <h3 className="gr-card-title">The problem</h3>
-                <p className="gr-card-meta">
-                  Legacy platforms charge high fees, require Stripe/PayPal, and can
-                  ban creators without warning.
-                </p>
-              </div>
-            </div>
-            <div className="gr-card">
-              <div className="gr-card-content">
-                <div className="gr-icon-box bg-mint">⚡</div>
-                <h3 className="gr-card-title">The solution</h3>
-                <p className="gr-card-meta">
-                  Sell digital content, set a SOL price, and unlock access
-                  immediately with on-chain verification.
-                </p>
-              </div>
-            </div>
-            <div className="gr-card">
-              <div className="gr-card-content">
-                <div className="gr-icon-box bg-lavender">🌍</div>
-                <h3 className="gr-card-title">The impact</h3>
-                <p className="gr-card-meta">
-                  Creators keep control, earn globally, and gate access using
-                  wallets instead of emails.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="gr-section bg-pink" id="creators">
-        <div className="gr-container">
-          <div className="gr-tag bg-yellow">Target Users</div>
-          <h2 className="gr-title-huge">Built for modern creators.</h2>
-          <div className="gr-grid-3 mt-16">
-            <div className="gr-card">
-              <div className="gr-card-content">
-                <h3 className="gr-card-title">Primary</h3>
-                <p className="gr-card-meta">
-                  Indie creators, students, devs, designers, freelancers, and
-                  AI/tech educators looking to monetize fast.
-                </p>
-              </div>
-            </div>
-            <div className="gr-card">
-              <div className="gr-card-content">
-                <h3 className="gr-card-title">Secondary</h3>
-                <p className="gr-card-meta">
-                  Buyers looking for high-quality templates, courses, notes,
-                  and exclusive creator tools.
-                </p>
-              </div>
-            </div>
-            <div className="gr-card">
-              <div className="gr-card-content">
-                <div className="gr-icon-box bg-white">🌐</div>
-                <h3 className="gr-card-title">Global Reach</h3>
-                <p className="gr-card-meta">
-                  Anyone blocked by legacy payment rails can start earning
-                  immediately with Solana.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="gr-section bg-mint">
-        <div className="gr-container">
-          <div className="gr-tag bg-white">Core features</div>
-          <h2 className="gr-title-huge">Everything you need to sell on-chain.</h2>
-          <p className="gr-subtitle">
-            Pay with SOL or PUSD. Quick and seamless.
-          </p>
-          <div className="gr-grid-3 mt-16">
-            {[
-              { title: "Wallet Auth", icon: "🔑", bg: "bg-yellow", desc: "One-click login with Phantom." },
-              { title: "Creator Dashboard", icon: "📊", bg: "bg-pink", desc: "Manage products and track your earnings." },
-              { title: "Public Storefront", icon: "🛍️", bg: "bg-white", desc: "A beautiful Buy Now flow for your audience." },
-              { title: "On-chain Payments", icon: "⛓️", bg: "bg-lavender", desc: "Instant settlement via Solana." },
-              { title: "Instant Unlock", icon: "🔓", bg: "bg-yellow", desc: "Buyers get immediate access post-purchase." },
-              { title: "Activity Metrics", icon: "📈", bg: "bg-white", desc: "Keep an eye on sales from your dashboard home." },
-            ].map((item, idx) => (
-              <div className="gr-card" key={idx}>
-                <div className="gr-card-content">
-                  <div className={`gr-icon-box ${item.bg}`}>{item.icon}</div>
-                  <h3 className="gr-card-title">{item.title}</h3>
-                  <p className="gr-card-meta">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="gr-section bg-black text-white" id="how-it-works">
-        <div className="gr-container">
-          <div className="gr-tag bg-lavender text-ink">User flow</div>
-          <h2 className="gr-title-huge text-white">From listing to unlock in minutes.</h2>
-          <div className="gr-grid-2 mt-16">
-            <div className="gr-timeline-card bg-white text-ink">
-              <h3 className="gr-card-title">Creator flow</h3>
-              <ul className="gr-timeline">
-                {[
-                  "Connect your wallet",
-                  "Create a product with title, price, and content link",
-                  "Publish and share your product page",
-                  "Track sales and earnings in the dashboard",
-                ].map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="gr-timeline-card bg-yellow text-ink">
-              <h3 className="gr-card-title">Buyer flow</h3>
-              <ul className="gr-timeline">
-                {[
-                  "Open the product page",
-                  "Connect wallet and click Buy",
-                  "Approve the Solana transfer",
-                  "Instantly unlock the gated link",
-                ].map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section> */}
 
     </Layout>
   );

@@ -47,6 +47,8 @@ async function getLocalIpfs() {
 }
 
 let mongoConnectPromise = null;
+let subscribersConnectPromise = null;
+let subscribersConnection = null;
 
 export async function ensureDbConnected() {
   const uri = process.env.MONGODB_URI;
@@ -59,6 +61,22 @@ export async function ensureDbConnected() {
     });
   }
   await mongoConnectPromise;
+}
+
+export async function ensureSubscribersDbConnected() {
+  const uri = String(process.env.SUBSCRIBERS_MONGODB_URI || "").trim();
+  if (!uri) throw new Error("SUBSCRIBERS_MONGODB_URI is required");
+  if (subscribersConnection?.readyState === 1) return subscribersConnection;
+  if (!subscribersConnectPromise) {
+    subscribersConnection = mongoose.createConnection(uri);
+    subscribersConnectPromise = subscribersConnection.asPromise().catch((err) => {
+      subscribersConnectPromise = null;
+      subscribersConnection = null;
+      throw err;
+    });
+  }
+  await subscribersConnectPromise;
+  return subscribersConnection;
 }
 
 const productSchema = new mongoose.Schema(
@@ -138,8 +156,13 @@ const subscriberSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-const Subscriber =
-  mongoose.models.Subscriber || mongoose.model("Subscriber", subscriberSchema);
+
+function getSubscriberModel() {
+  if (!subscribersConnection) {
+    throw new Error("Subscribers database is not connected");
+  }
+  return subscribersConnection.models.Subscriber || subscribersConnection.model("Subscriber", subscriberSchema);
+}
 
 const slugify = (value) =>
   value
@@ -611,20 +634,16 @@ export function createApp() {
           "Product uploads need Kubo running: `ipfs daemon` (API default :5001). Or use Pinata: set PINATA_JWT, remove IPFS_LOCAL_ONLY from backend/.env, optionally VITE_PINATA_JWT in web/.env.";
       }
     }
+    body.subscribersMongoConfigured = Boolean(String(process.env.SUBSCRIBERS_MONGODB_URI || "").trim());
     res.json(body);
   });
 
-  app.use(async (_req, _res, next) => {
-    try {
-      await ensureDbConnected();
-      next();
-    } catch (e) {
-      next(e);
-    }
-  });
-
+  // Footer email signup — separate MongoDB (`subs-rivo`), not the main app database
   app.post("/api/subscribers", async (req, res) => {
     try {
+      await ensureSubscribersDbConnected();
+      const Subscriber = getSubscriberModel();
+
       const email = String(req.body?.email || "")
         .trim()
         .toLowerCase();
@@ -640,10 +659,24 @@ export function createApp() {
       await Subscriber.create({ email });
       return res.status(201).json({ success: true, message: "Thanks for subscribing!" });
     } catch (e) {
+      if (e?.message?.includes("SUBSCRIBERS_MONGODB_URI")) {
+        console.error(e);
+        return res.status(503).json({ message: "Newsletter signup is not configured." });
+      }
       if (e?.code === 11000) {
         return res.json({ success: true, message: "You're already subscribed." });
       }
+      console.error(e);
       return res.status(500).json({ message: "Could not subscribe. Try again." });
+    }
+  });
+
+  app.use(async (_req, _res, next) => {
+    try {
+      await ensureDbConnected();
+      next();
+    } catch (e) {
+      next(e);
     }
   });
 

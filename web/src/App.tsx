@@ -236,7 +236,7 @@ function Layout({
               </div>
               <div className="gr-footer-col">
                 <strong>Socials</strong>
-                <a href="https://x.com/rivolabsxyz" target="_blank" rel="noreferrer">Twitter / X</a>
+                <a href="https://x.com/rivolabsxyz" target="_blank" rel="noreferrer">X</a>
                 <a href="https://discord.gg/THpac3zG5" target="_blank" rel="noreferrer">Discord</a>
               </div>
               <FooterEmailSignup />

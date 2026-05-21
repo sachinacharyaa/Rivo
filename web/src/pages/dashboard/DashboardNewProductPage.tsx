@@ -10,7 +10,7 @@ import { CRYPTO_OPTIONS, type ProductCurrency } from "../../lib/productUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import type { ProductShape } from "../../types/product";
 import { TOKENS } from "../../config/tokens";
-import { getPinataBrowserJwt, uploadFilesViaPinataBrowser } from "../../lib/pinataClientUpload";
+import { uploadProductDeliveryFiles } from "../../lib/productFileUpload";
 
 type DigitalProductUploadResponse = {
   deliveryMode: "ipfs_encrypted";
@@ -107,20 +107,7 @@ export function DashboardNewProductPage() {
     const smallestUnitPrice =
       draft.currency === "PUSD" ? Math.round(price * 10 ** TOKENS.PUSD.decimals) : 0;
     try {
-      const uploadRes = getPinataBrowserJwt()
-        ? await (async () => {
-            const registered = await uploadFilesViaPinataBrowser(files);
-            return api.post<DigitalProductUploadResponse>("/digital-products/register-ipfs", {
-              files: registered,
-            });
-          })()
-        : await (async () => {
-            const fd = new FormData();
-            files.forEach((f) => fd.append("files", f));
-            return api.post<DigitalProductUploadResponse>("/digital-products/upload", fd, {
-              headers: { "Content-Type": "multipart/form-data" },
-            });
-          })();
+      const uploadRes = await uploadProductDeliveryFiles(files);
 
       const { data } = await api.post<ProductShape>("/products", {
         title: draft.name.trim(),

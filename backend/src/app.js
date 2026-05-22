@@ -641,7 +641,14 @@ export function createApp() {
       }
     }
     body.subscribersMongoConfigured = Boolean(String(process.env.SUBSCRIBERS_MONGODB_URI || "").trim());
+    body.platformFeeWallet = RIPPLE_FEE_WALLET;
     res.json(body);
+  });
+
+  app.get("/api/config", (_req, res) => {
+    res.json({
+      platformFeeWallet: RIPPLE_FEE_WALLET,
+    });
   });
 
   // Footer email signup — separate MongoDB (`subs-rivo`), not the main app database

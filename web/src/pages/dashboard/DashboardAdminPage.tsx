@@ -2,19 +2,41 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../lib/api";
 import { fetchSolUsdPrice, solToUsd } from "../../lib/solPrice";
+import {
+  formatProductPrice,
+  formatTokenAmount,
+  normalizeCurrency,
+} from "../../lib/productUtils";
+import type { ProductShape } from "../../types/product";
 
 type TopProduct = {
-  product: {
-    _id: string;
-    title: string;
-    price: number;
-    priceSol: number;
-    coverUrl?: string;
-  };
+  product: Pick<
+    ProductShape,
+    "_id" | "title" | "price" | "priceSol" | "priceUsdc" | "currency" | "coverUrl"
+  >;
   totalRevenueUsd: number;
   totalRevenueSol: number;
   buyersCount: number;
 };
+
+function formatLeaderboardRevenue(item: TopProduct): string {
+  const parts: string[] = [];
+  const listingCurrency = normalizeCurrency(item.product?.currency);
+
+  if (item.totalRevenueSol > 0) {
+    parts.push(formatTokenAmount(item.totalRevenueSol, "SOL", 4));
+  }
+  if (item.totalRevenueUsd > 0) {
+    if (listingCurrency === "USDC") {
+      parts.push(formatTokenAmount(item.totalRevenueUsd, "USDC"));
+    } else {
+      parts.push(formatTokenAmount(item.totalRevenueUsd / 1_000_000, "PUSD"));
+    }
+  }
+
+  if (parts.length === 0) return "—";
+  return parts.join(" · ");
+}
 
 type LeaderboardData = {
   totalPlatformRevenueUsd: number;
@@ -208,9 +230,9 @@ export function DashboardAdminPage() {
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--muted)" }}>
                   <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Product</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Buyers</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Revenue (USD)</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Revenue (SOL)</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Price</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Buyer</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--purple-light)" }}>Revenue</th>
                 </tr>
               </thead>
               <tbody>
@@ -228,9 +250,11 @@ export function DashboardAdminPage() {
                       )}
                       <strong style={{ fontWeight: 500 }}>{item.product?.title || "Unknown Product"}</strong>
                     </td>
+                    <td style={{ padding: "16px" }}>
+                      {item.product ? formatProductPrice(item.product) : "—"}
+                    </td>
                     <td style={{ padding: "16px" }}>{item.buyersCount}</td>
-                    <td style={{ padding: "16px" }}>${item.totalRevenueUsd.toFixed(2)}</td>
-                    <td style={{ padding: "16px" }}>{item.totalRevenueSol.toFixed(4)} SOL</td>
+                    <td style={{ padding: "16px" }}>{formatLeaderboardRevenue(item)}</td>
                   </tr>
                 ))}
               </tbody>

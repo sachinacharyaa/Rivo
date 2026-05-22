@@ -7,8 +7,10 @@ import {
 } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
-export const RIVO_FEE_WALLET =
-  "6jaM7rGsMgk81pogFqMAGj7K8AByW8tQTTEnmDYFQpbH";
+import { DEFAULT_PLATFORM_FEE_WALLET, getPlatformFeeWallet } from "./platformConfig";
+
+/** @deprecated Use `getPlatformFeeWallet()` — must match backend `RIPPLE_FEE_WALLET`. */
+export const RIVO_FEE_WALLET = DEFAULT_PLATFORM_FEE_WALLET;
 
 // Backward-compat alias for existing imports.
 export const RIPPLE_FEE_WALLET = RIVO_FEE_WALLET;
@@ -76,14 +78,15 @@ export async function handlePayment({
   wallet,
   productPriceSol,
   creatorAddress,
-  platformAddress = RIVO_FEE_WALLET,
+  platformAddress,
 }: PaymentParams): Promise<string> {
   if (!wallet.publicKey) {
     throw new Error("Connect wallet first");
   }
 
+  const feeWallet = platformAddress ?? (await getPlatformFeeWallet());
   const creatorPubKey = new PublicKey(creatorAddress);
-  const platformPubKey = new PublicKey(platformAddress);
+  const platformPubKey = new PublicKey(feeWallet);
   const quote = getPaymentQuote(productPriceSol);
 
   // Build a single transaction with split payment transfers.

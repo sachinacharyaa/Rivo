@@ -10,7 +10,7 @@ import {
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
 
-import { RIVO_FEE_WALLET } from "./payment";
+import { getPlatformFeeWallet } from "./platformConfig";
 
 type TokenPaymentParams = {
   connection: Connection;
@@ -27,17 +27,18 @@ export async function handleTokenPayment({
   mintAddress,
   amount,
   creatorAddress,
-  platformAddress = RIVO_FEE_WALLET,
+  platformAddress,
 }: TokenPaymentParams): Promise<string> {
   if (!wallet.publicKey) throw new Error("Connect wallet first");
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Invalid token amount.");
   }
 
+  const feeWallet = platformAddress ?? (await getPlatformFeeWallet());
   const mint = new PublicKey(mintAddress);
   const creator = new PublicKey(creatorAddress);
   const buyer = wallet.publicKey;
-  const platform = new PublicKey(platformAddress);
+  const platform = new PublicKey(feeWallet);
 
   const totalAmount = BigInt(Math.round(amount));
   const feeAmount = totalAmount / 100n; // 1% platform fee

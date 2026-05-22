@@ -45,7 +45,7 @@ export function DashboardNewProductPage() {
   const [draft, setDraft] = useState({
     name: "",
     productType: "digital",
-    currency: "PUSD" as ProductCurrency,
+    currency: "SOL" as ProductCurrency,
     priceAmount: "",
     description: "",
     productInfo: "",
@@ -631,7 +631,7 @@ export function DashboardNewProductPage() {
                 {draft.productInfo ? <p className="dash-preview-card__note dash-preview-card__note--inline">{draft.productInfo}</p> : null}
               </div>
               <p className="dash-preview-card__note">
-                Buyers see this page after checkout. Default listing currency is PUSD, but you can choose others.
+                Buyers see this page after checkout. Default listing currency is SOL; you can choose PUSD or USDC.
               </p>
             </div>
           </aside>

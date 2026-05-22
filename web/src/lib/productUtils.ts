@@ -3,8 +3,8 @@ import type { ProductShape } from "../types/product";
 export type ProductCurrency = NonNullable<ProductShape["currency"]>;
 
 export const CRYPTO_OPTIONS = [
-  { code: "PUSD" as const, label: "PUSD", symbol: "₱" },
   { code: "SOL" as const, label: "SOL (Solana)", symbol: "◎" },
+  { code: "PUSD" as const, label: "PUSD", symbol: "₱" },
 ];
 
 /** Shown only when editing a listing that still uses legacy USDC. */
@@ -26,7 +26,7 @@ export function currencyOptionsForProductEditor(currentCurrency: ProductCurrency
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-export const SUPPORTED_CURRENCIES: ProductCurrency[] = ["PUSD", "SOL", "USDC"];
+export const SUPPORTED_CURRENCIES: ProductCurrency[] = ["SOL", "PUSD", "USDC"];
 
 const numberFormatters = new Map<string, Intl.NumberFormat>();
 

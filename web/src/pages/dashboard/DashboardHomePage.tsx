@@ -63,12 +63,12 @@ export function DashboardHomePage() {
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [buyerPurchaseCount, setBuyerPurchaseCount] = useState(0);
   const [activityCurrency, setActivityCurrency] = useState<ProductCurrency>(() => {
-    if (typeof localStorage === "undefined") return "PUSD";
+    if (typeof localStorage === "undefined") return "SOL";
     const saved = localStorage.getItem("Rivo_activity_currency");
     if (saved && SUPPORTED_CURRENCIES.includes(saved as ProductCurrency)) {
       return saved as ProductCurrency;
     }
-    return "PUSD";
+    return "SOL";
   });
   const [activityCurrencyOpen, setActivityCurrencyOpen] = useState(false);
   const activityMenuRef = useRef<HTMLDivElement>(null);

@@ -843,7 +843,7 @@ export function createApp() {
 
       const populated = await Product.populate(byProduct, {
         path: "_id",
-        select: "title price priceSol coverUrl status",
+        select: "title price priceSol priceUsdc currency coverUrl status",
       });
 
       const formatted = populated

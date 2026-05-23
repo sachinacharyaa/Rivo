@@ -6,6 +6,12 @@ import { z } from "zod";
 import multer from "multer";
 import crypto from "crypto";
 import { verifySolTransfer, verifySplSplitTransfer } from "./verifyTransfer.js";
+import {
+  PLATFORM_FEE_PERCENT,
+  creatorShareFromTotal,
+  platformFeeFromGross,
+  platformFeeFromTotal,
+} from "./platformFee.js";
 import { Readable } from "node:stream";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -648,6 +654,7 @@ export function createApp() {
   app.get("/api/config", (_req, res) => {
     res.json({
       platformFeeWallet: RIPPLE_FEE_WALLET,
+      platformFeePercent: PLATFORM_FEE_PERCENT,
     });
   });
 
@@ -857,8 +864,8 @@ export function createApp() {
 
       const sumGrossUsd = formatted.reduce((acc, row) => acc + row.totalRevenueUsd, 0);
       const sumGrossSol = formatted.reduce((acc, row) => acc + row.totalRevenueSol, 0);
-      const totalPlatformRevenueUsd = sumGrossUsd * 0.01;
-      const totalPlatformRevenueSol = sumGrossSol * 0.01;
+      const totalPlatformRevenueUsd = platformFeeFromGross(sumGrossUsd);
+      const totalPlatformRevenueSol = platformFeeFromGross(sumGrossSol);
       const totalPurchases = formatted.reduce((acc, row) => acc + row.buyersCount, 0);
 
       const platformRevenueUsdByProduct = formatted
@@ -868,7 +875,7 @@ export function createApp() {
           productTitle: row.product.title,
           buyersCount: row.buyersCount,
           gross: row.totalRevenueUsd,
-          platformFee: row.totalRevenueUsd * 0.01,
+          platformFee: platformFeeFromGross(row.totalRevenueUsd),
         }))
         .sort((a, b) => b.platformFee - a.platformFee);
 
@@ -879,7 +886,7 @@ export function createApp() {
           productTitle: row.product.title,
           buyersCount: row.buyersCount,
           gross: row.totalRevenueSol,
-          platformFee: row.totalRevenueSol * 0.01,
+          platformFee: platformFeeFromGross(row.totalRevenueSol),
         }))
         .sort((a, b) => b.platformFee - a.platformFee);
 
@@ -900,7 +907,7 @@ export function createApp() {
           productTitle: product.title,
           currency: p.currency,
           gross,
-          platformFee: gross * 0.01,
+          platformFee: platformFeeFromGross(gross),
           createdAt: p.createdAt,
         };
       };
@@ -1173,8 +1180,8 @@ export function createApp() {
     const solFixed = product.priceSol.toFixed(9);
     const [wholePart, fracPart = ""] = solFixed.split(".");
     const expectedLamports = BigInt(wholePart) * BigInt(LAMPORTS_PER_SOL) + BigInt(fracPart.padEnd(9, "0").slice(0, 9));
-    const feeLamports = expectedLamports / 100n; // 1% platform fee
-    const creatorLamports = expectedLamports - feeLamports;
+    const feeLamports = platformFeeFromTotal(expectedLamports);
+    const creatorLamports = creatorShareFromTotal(expectedLamports);
     const payoutWallet = product.payoutWallet || product.creatorWallet;
 
     const existing = await Purchase.findOne({ txSignature });
@@ -1195,8 +1202,8 @@ export function createApp() {
         return res.status(500).json({ message: "PUSD mint is not configured on backend" });
       }
       const expectedTotal = BigInt(Math.round(product.price));
-      const expectedFee = expectedTotal / 100n; // 1% platform fee
-      const expectedCreator = expectedTotal - expectedFee;
+      const expectedFee = platformFeeFromTotal(expectedTotal);
+      const expectedCreator = creatorShareFromTotal(expectedTotal);
 
       const buyerAta = deriveAtaAddress(buyerWallet, PUSD_MINT);
       const creatorAta = deriveAtaAddress(payoutWallet, PUSD_MINT);
@@ -1223,8 +1230,8 @@ export function createApp() {
         return res.status(500).json({ message: `${checkoutCurrency} mint is not configured on backend` });
       }
       const expectedTotal = BigInt(Math.round(human * 1_000_000));
-      const expectedFee = expectedTotal / 100n;
-      const expectedCreator = expectedTotal - expectedFee;
+      const expectedFee = platformFeeFromTotal(expectedTotal);
+      const expectedCreator = creatorShareFromTotal(expectedTotal);
       const buyerAta = deriveAtaAddress(buyerWallet, mint);
       const creatorAta = deriveAtaAddress(payoutWallet, mint);
       const platformAta = deriveAtaAddress(RIPPLE_FEE_WALLET, mint);

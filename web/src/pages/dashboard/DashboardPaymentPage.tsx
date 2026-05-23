@@ -3,6 +3,7 @@ import axios from "axios";
 import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { api } from "../../lib/api";
+import { PLATFORM_FEE_PERCENT } from "../../lib/platformFee";
 
 type Mode = "current" | "custom";
 
@@ -93,7 +94,7 @@ export function DashboardPaymentPage() {
           <h1 className="gum-page__h1">Payments</h1>
           <p className="gum-page__lead">
             Choose where your SOL sales are paid out. Buyers will pay the saved
-            payout wallet, plus a 1% Rivo fee.
+            payout wallet, plus a {PLATFORM_FEE_PERCENT}% Rivo fee.
           </p>
         </div>
       </div>

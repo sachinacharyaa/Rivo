@@ -8,6 +8,7 @@ import {
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
 import { DEFAULT_PLATFORM_FEE_WALLET, getPlatformFeeWallet } from "./platformConfig";
+import { creatorShareFromTotal, platformFeeFromTotal } from "./platformFee";
 
 /** @deprecated Use `getPlatformFeeWallet()` — must match backend `RIPPLE_FEE_WALLET`. */
 export const RIVO_FEE_WALLET = DEFAULT_PLATFORM_FEE_WALLET;
@@ -54,8 +55,8 @@ function parseSolToLamports(value: number): bigint {
 
 export function getPaymentQuote(productPriceSol: number): PaymentQuote {
   const totalLamports = parseSolToLamports(productPriceSol);
-  const feeLamports = totalLamports / 100n;
-  const creatorLamports = totalLamports - feeLamports;
+  const feeLamports = platformFeeFromTotal(totalLamports);
+  const creatorLamports = creatorShareFromTotal(totalLamports);
   return {
     totalLamports,
     feeLamports,

@@ -11,6 +11,7 @@ import {
 } from "@solana/spl-token";
 
 import { getPlatformFeeWallet } from "./platformConfig";
+import { creatorShareFromTotal, platformFeeFromTotal } from "./platformFee";
 
 type TokenPaymentParams = {
   connection: Connection;
@@ -41,8 +42,8 @@ export async function handleTokenPayment({
   const platform = new PublicKey(feeWallet);
 
   const totalAmount = BigInt(Math.round(amount));
-  const feeAmount = totalAmount / 100n; // 1% platform fee
-  const creatorAmount = totalAmount - feeAmount;
+  const feeAmount = platformFeeFromTotal(totalAmount);
+  const creatorAmount = creatorShareFromTotal(totalAmount);
 
   const buyerAta = await getAssociatedTokenAddress(mint, buyer);
   const creatorAta = await getAssociatedTokenAddress(mint, creator);
@@ -66,7 +67,7 @@ export async function handleTokenPayment({
     throw new Error("Your wallet does not have a token account for this mint.");
   }
 
-  // Split payment: 99% -> creator, 1% -> platform.
+  // Split payment: creator share + platform fee (see platformFee.ts).
   if (creatorAmount > 0n) {
     tx.add(createTransferInstruction(buyerAta, creatorAta, buyer, creatorAmount));
   }

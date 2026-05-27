@@ -30,7 +30,7 @@ function formatLeaderboardRevenue(item: TopProduct): string {
     if (listingCurrency === "USDC") {
       parts.push(formatTokenAmount(item.totalRevenueUsd, "USDC"));
     } else {
-      parts.push(formatTokenAmount(item.totalRevenueUsd / 1_000_000, "PUSD"));
+      parts.push(formatTokenAmount(item.totalRevenueUsd, "PUSD"));
     }
   }
 

@@ -67,7 +67,7 @@ export function DashboardAdminPage() {
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [revenueView, setRevenueView] = useState<PlatformRevenueView>("usd");
+  const [revenueView, setRevenueView] = useState<PlatformRevenueView>("total");
   const [revenueMenuOpen, setRevenueMenuOpen] = useState(false);
   const [solUsd, setSolUsd] = useState<number | null>(null);
   const revenueMenuRef = useRef<HTMLDivElement>(null);

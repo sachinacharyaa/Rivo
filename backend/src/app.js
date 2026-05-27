@@ -832,9 +832,14 @@ export function createApp() {
         {
           $group: {
             _id: "$productId",
-            totalRevenueUsd: {
+            totalRevenuePusdBase: {
               $sum: {
-                $cond: [{ $in: ["$currency", ["PUSD", "USDC"]] }, "$amount", 0],
+                $cond: [{ $eq: ["$currency", "PUSD"] }, "$amount", 0],
+              },
+            },
+            totalRevenueUsdc: {
+              $sum: {
+                $cond: [{ $eq: ["$currency", "USDC"] }, "$amount", 0],
               },
             },
             totalRevenueSol: {
@@ -857,7 +862,8 @@ export function createApp() {
         .filter((item) => isListedProduct(item._id))
         .map((item) => ({
           product: item._id,
-          totalRevenueUsd: item.totalRevenueUsd || 0,
+          // PUSD is stored in base units (1e6); USDC is stored in human units.
+          totalRevenueUsd: (item.totalRevenuePusdBase || 0) / 1_000_000 + (item.totalRevenueUsdc || 0),
           totalRevenueSol: item.totalRevenueSol || 0,
           buyersCount: item.buyersCount || 0,
         }));
@@ -900,7 +906,7 @@ export function createApp() {
         const product = p.productId;
         if (!isListedProduct(product)) return null;
         const isSol = p.currency === "SOL";
-        const gross = isSol ? p.amountSol || 0 : p.amount || 0;
+        const gross = isSol ? p.amountSol || 0 : p.currency === "PUSD" ? (p.amount || 0) / 1_000_000 : p.amount || 0;
         if (gross <= 0) return null;
         return {
           buyerWallet: p.buyerWallet,

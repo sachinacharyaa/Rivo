@@ -20,12 +20,6 @@ const PRODUCT_TYPES = [
   { id: "bundle", title: "Bundle", desc: "Multiple products in one.", emoji: "🎁" },
 ];
 
-const SERVICE_TYPES = [
-  { id: "commission", title: "Commission", desc: "Custom work for buyers.", emoji: "✏️" },
-  { id: "call", title: "Call", desc: "Scheduled calls.", emoji: "📞" },
-  { id: "coffee", title: "Coffee", desc: "Support tips.", emoji: "☕" },
-];
-
 /** Matches backend `multer` max files per product. */
 const MAX_PRODUCT_FILES = 10;
 
@@ -388,19 +382,6 @@ export function DashboardNewProductPage() {
                     <div className="gum-type-card__title">{t.title}</div>
                     <p className="gum-type-card__desc">{t.desc}</p>
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="gum-field">
-              <span className="gum-label gum-label--dim">Services (coming soon)</span>
-              <div className="gum-type-grid gum-type-grid--dim">
-                {SERVICE_TYPES.map((t) => (
-                  <div key={t.id} className="gum-type-card gum-type-card--disabled">
-                    <span className="gum-type-card__emoji">{t.emoji}</span>
-                    <div className="gum-type-card__title">{t.title}</div>
-                    <p className="gum-type-card__desc">{t.desc}</p>
-                  </div>
                 ))}
               </div>
             </div>

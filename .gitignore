@@ -15,3 +15,6 @@ dist/
 brand.md
 superteam-india-grant-application.md
 *.log
+
+# Verification proof (keep the skill; do not commit screenshots)
+.cursor/skills/verify-rivo/artifacts/
